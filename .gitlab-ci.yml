@@ -1,0 +1,20 @@
+image: python:3.5
+
+before_script:
+  - apt update -qy
+  - pip install --upgrade pip
+  - make setup
+
+types:
+  - test
+
+test_app:
+  type: test
+  script:
+    - make test
+    - make coverage
+
+style_app:
+  type: test
+  script:
+    - make style
