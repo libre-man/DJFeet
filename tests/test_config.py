@@ -24,6 +24,7 @@ def boolean(request):
 def get_types_func(request):
     yield request.param
 
+
 @pytest.fixture
 def config_file():
     return os.path.join(my_path, 'test_data', 'config.cfg')
@@ -175,23 +176,27 @@ def test_get_class(config, monkeypatch, expected, basecls, cls_name,
         assert mock_get_all_subclasses.called
         assert mock_get_all_subclasses.args[0][0] == (basecls, )
 
+
 @pytest.mark.parametrize("cls", [
     (A),
     (A),
     (B),
     (B),
 ])
-def test_get_the_class_instance(config, monkeypatch, get_types_func, cls, boolean):
+def test_get_the_class_instance(config, monkeypatch, get_types_func, cls,
+                                boolean):
     mock_get_class_instance = MockingFunction(lambda: cls(), simple=True)
     monkeypatch.setattr(config, '_get_class_instance', mock_get_class_instance)
     func = "get_" + get_types_func.__name__.lower()
     if boolean:
         inst = getattr(config, func)(cls)
         assert mock_get_class_instance.called
-        assert mock_get_class_instance.args[0][0] == (get_types_func, cls,)
+        assert mock_get_class_instance.args[0][0] == (get_types_func,
+                                                      cls, )
     else:
         inst = getattr(config, func)()
         assert mock_get_class_instance.called
-        assert mock_get_class_instance.args[0][0] == (get_types_func, None,)
+        assert mock_get_class_instance.args[0][0] == (get_types_func,
+                                                      None, )
 
     assert isinstance(inst, cls)

@@ -31,11 +31,14 @@ def test_song_struct(file_location, start_pos, end_pos):
 class BaseClass:
     pass
 
+
 class Stub:
     pass
 
+
 class A:
     pass
+
 
 class B(A):
     pass
@@ -61,12 +64,12 @@ class SubClassMultipleDouble(SubClassMultiple, Stub):
     pass
 
 
-@pytest.mark.parametrize(
-    "baseclass, expected",
-    [(SubClassOneOne, {SubClassTwoOne}),
+@pytest.mark.parametrize("baseclass, expected", [
+    (SubClassOneOne, {SubClassTwoOne}),
     (A, {B}),
     (SubClassOneTwo, set()),
-    (BaseClass, {SubClassOneOne, SubClassOneTwo, SubClassMultipleDouble, SubClassMultiple, SubClassTwoOne}),
- ])
+    (BaseClass, {SubClassOneOne, SubClassOneTwo, SubClassMultipleDouble,
+                 SubClassMultiple, SubClassTwoOne}),
+])
 def test_get_all_subclasses(baseclass, expected):
     assert helpers.get_all_subclasses(baseclass) == expected
