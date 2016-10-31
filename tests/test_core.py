@@ -95,7 +95,7 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
     monkeypatch.setattr(time, 'sleep', mock_sleep)
     core.loop(mock_controller, mock_picker, mock_transitioner,
               mock_communicator)
-    out, err = capsys.readouterr()
+    _, err = capsys.readouterr()
 
     if err:
         assert mock_controller.waittime_amount < 0
