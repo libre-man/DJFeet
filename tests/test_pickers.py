@@ -9,7 +9,7 @@ my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
 
 import dj_feet.pickers as pickers
-from dj_feet.helpers import get_all_subclasses
+from dj_feet.helpers import get_all_subclasses, SongStruct
 
 
 @pytest.fixture
@@ -63,7 +63,8 @@ def test_simple_picker_working_direct(monkeypatch, simple_picker, songs_dir,
                                          simple=True)
     monkeypatch.setattr(random, 'choice', mock_random_choice)
     chosen_song = simple_picker.get_next_song({})
-    assert chosen_song == song_to_choose
+    assert isinstance(chosen_song, SongStruct)
+    assert chosen_song.file_location == song_to_choose
     assert len(mock_random_choice.args) == 1
     assert len(mock_random_choice.args[0][0]) == 1
     assert len(mock_random_choice.args[0][1]) == 0

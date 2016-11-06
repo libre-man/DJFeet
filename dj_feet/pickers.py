@@ -26,4 +26,4 @@ class SimplePicker(Picker):
                 raise ValueError("There are no songs left")
             next_song = random.choice(self.song_files)
             self.song_files.remove(next_song)
-        return next_song
+        return SongStruct(next_song, 0, -1)
