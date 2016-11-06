@@ -11,3 +11,11 @@ class Communicator:
         """Get and return the user feedback. The return value should be
         subtyping dict"""
         raise NotImplementedError("This method should be overridden")
+
+
+class SimpleCommunicator(Communicator):
+    def __init__(self):
+        pass
+
+    def get_user_feedback(self):
+        return {}
