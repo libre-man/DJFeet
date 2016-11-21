@@ -3,7 +3,7 @@ setup:
 	python3 setup.py install
 
 test:
-	pytest -v --showlocals tests
+	pytest -v  tests
 
 style:
 	find dj_feet tests -name \[a-zA-Z_]*.py -exec pep8 --ignore=E402 {} +
