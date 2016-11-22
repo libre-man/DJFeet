@@ -1,24 +1,38 @@
-from pydub import AudioSegment
-
-# Step size of streaming in miliseconds
-STEP_SIZE = 30000
-
+import librosa
+import numpy as np
+# Step size of streaming in seconds
 
 class Song:
-    def __init__(self, file_location, start_pos, progress=0):
-        self.start_pos = start_pos
-        self.progress = progress
-        self.audio = AudioSegment.from_file(next_song.file_location)
+    def __init__(self, file_location, curr_frame):
+        self.file_location = file_location
+        self.curr_frame = 0
+        # Load the sample from the given location
+        self.time_series, self.sampling_rate = librosa.load(file_location)
+        # Get the beat track and BPM
+        self.tempo, self.beat_track = librosa.beat.beat_track(self.time_series,
+                                                            self.sampling_rate)
 
 
-    def add_progress(self, addition=1):
-        self.progress += addition
+    def next_segment(self, segment_size, begin=False):
+        if begin:
+            time_vector = np.array(0, segment_size)
+        else:
+            time_vector = np.array(self.curr_frame,
+                                   segment_size + self.curr_frame)
+            self.curr_frame += segment_size
+
+        start, end = librosa.core.time_to_frames(time_vector,
+                                                  self.sampling_rate)
+        return (start, end)
 
 
-    def get_next_segment(self):
-        """
-        Return the next segment of the sample. The length of this segment
-        is defined in the STEP_SIZE constant.
-        """
-        return self.audio[self.start_pos + STEP_SIZE * self.progress:
-            self.start_pos + STEP_SIZE * (self.progress + 1)]
+    def time_delta(self, start_frame, end_frame):
+        return librosa.frames_to_time(np.array(start_frame, end_frame),
+                                      self.sampling_rate)
+
+
+    def frame_to_segment_time(self, segment_size, prev_time, start_frame):
+        time_diff = segment_size - prev_time
+        frame_delta = librosa.time_to_frames(np.array(0, time_diff),
+                                             self.sampling_rate)
+        return start_frame + frame_delta
