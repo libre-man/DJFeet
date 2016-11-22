@@ -86,7 +86,7 @@ class InfJukeboxTransitioner(Transitioner):
                                                           prev_song_time,
                                                           next_frame)
             return prev_song.time_series[seg_start:prev_frame].append(
-                   next_song.time_series[next_frame:final_frame])
+                next_song.time_series[next_frame:final_frame])
 
     def find_similar_frames(self, prev_song, next_song, seg_start, seg_end):
         return 1, 1
