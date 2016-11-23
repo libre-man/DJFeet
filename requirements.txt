@@ -5,3 +5,4 @@ pep8
 libfaketime
 pydub
 librosa
+numpy

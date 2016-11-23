@@ -59,12 +59,17 @@ class InfJukeboxTransitioner(Transitioner):
 
     def merge(self, prev_song, next_song):
         """
-        Prev_song and next_song both need to be song objects.
+        Given two song objects, find the most similar frame in the upcoming
+        segments and transition the songs at that frame creating new
+        segment.
+        Returns the next segment to stream.
+        Note: next_song can be the same as prev_song, the next segment of this
+              song is returned in this case.
         """
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
         seg_start, seg_end = prev_song.next_segment(self.segment_size)
-        # Check if the next song is the same as the current song
+        # Check if the next song is the same as the current song.
         if prev_song.file_location is next_song.file_location:
             # If it is the same song, return the next segment.
             return prev_song.time_series[seg_start, seg_end]
@@ -89,4 +94,18 @@ class InfJukeboxTransitioner(Transitioner):
                 next_song.time_series[next_frame:final_frame])
 
     def find_similar_frames(self, prev_song, next_song, seg_start, seg_end):
+        """
+        Find a similar frame in the previous (current) and the next song. Only
+        frames in the next segment of the current song and the first segment
+        of the next song will be taken into account.
+        Returns a tuple of the frames (frame_prev_song, frame_next_song) that
+        are found most similar.
+        """
+        prev_seg = prev_song.time_series[seg_start:seg_end]
+        # Find the first segment of the next song.
+        next_start, next_end = next_song.next_segment(self.segment_size,
+                                                      begin=True)
+        next_seg = next_song.time_series[next_start:next_end]
+
+        
         return 1, 1
