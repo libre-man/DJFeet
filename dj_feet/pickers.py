@@ -65,8 +65,9 @@ class NCAPicker(Picker):
             return (
                 numpy.log(numpy.linalg.det(cov_q) / numpy.linalg.det(cov_p)) +
                 numpy.trace(numpy.dot(cov_q_inv, cov_p)) + numpy.dot(
-                    numpy.transpose(m_p - m_q), numpy.dot(cov_q_inv, (
-                        m_p - m_q))) - d) / 2
+                    numpy.transpose(m_p - m_q), numpy.dot(cov_q_inv,
+                                                          (m_p - m_q))) - d
+            ) / 2
 
         return (kl(song_q, song_p) + kl(song_p, song_q)) / 2
 
@@ -92,17 +93,17 @@ class NCAPicker(Picker):
                 # calculcate sum of e to the power of -distance for each
                 # distance
                 distance_sum += numpy.power(numpy.e, -dst)
-            for song_file, dist in self.song_distances.items():
+            for song_file, dists in self.song_distances.items():
                 # pick file with chance of e to the power of -distance divided
                 # by
                 # distance_sum
-                chance = self.distance(self.current_song,
-                                       song_file) / distance_sum
+                chance = dists[self.current_song] / distance_sum
                 if random.random() < chance:
                     break
             next_song = song_file
         if self.current_song == next_song:
             self.streak += 1
+        else:
+            self.song_files.remove(self.current_song)
         self.current_song = next_song
-        self.song_files.remove(next_song)
         return SongStruct(next_song, 0, None)

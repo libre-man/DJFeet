@@ -104,5 +104,11 @@ def test_nca_picker_distance(nca_picker, same, songs_dir):
 
     res_1 = nca_picker.distance(song_file1, song_file2)
     res_2 = nca_picker.distance(song_file2, song_file1)
+    print(res_1)
+    print(song_file1)
+    print(song_file2)
     assert res_1 == res_2
-    assert (res_1 == 0) if same else (res_1 != 0)
+    if same:
+        assert res_1 == 0
+    else:
+        assert res_1 != 0
