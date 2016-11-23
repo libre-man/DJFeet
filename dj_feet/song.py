@@ -7,7 +7,7 @@ class Song:
         self.file_location = file_location
         self.curr_time = 0
         # Load the sample from the given location
-        self.time_series, self.sampling_rate = librosa.load(file_location, sr=44100, duration=10.0)
+        self.time_series, self.sampling_rate = librosa.load(file_location, sr=32000)
         # Get the beat track and BPM
         self.tempo, self.beat_track = librosa.beat.beat_track(self.time_series,
                                                               self.sampling_rate)

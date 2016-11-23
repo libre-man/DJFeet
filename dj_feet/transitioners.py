@@ -8,7 +8,7 @@ import numpy as np
 # FOR TESTING PUPROSES:
 import random
 
-SAMPLING_RATE = 44100
+SAMPLING_RATE = 32000
 
 class Transitioner:
     def __init__(self):
@@ -123,7 +123,6 @@ class InfJukeboxTransitioner(Transitioner):
                                  sample,
                                  SAMPLING_RATE,
                                  norm=False)
-        time_series, sampling_rate = librosa.load("tests/test_data/songs/output.wav", sr=44100, duration=10.0)
         # f_name = None
         # with NamedTemporaryFile("w+b", suffix=".wav", delete=False) as f:
         #     sample.export(f.name, format="mp3")
