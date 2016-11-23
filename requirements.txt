@@ -4,3 +4,5 @@ pytest-cov
 pep8
 libfaketime
 pydub
+librosa
+numpy
