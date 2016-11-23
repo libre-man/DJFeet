@@ -33,11 +33,14 @@ class SimplePicker(Picker):
 
 
 class NCAPicker(Picker):
-    def __init__(self, song_folder, mfcc_amount=20, matrix=None):
+    def __init__(self, song_folder, mfcc_amount=20, current_multiplier=0.5):
         self.current_song = None
+        self.multiplier = current_multiplier
+        self.streak = 0
+
         self.song_folder = song_folder
         self.song_files = [f for _, __, f in os.walk(song_folder)][0]
-        self.matrix = matrix
+
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
         self.averages = dict()
         self.covariances = dict()
@@ -61,9 +64,9 @@ class NCAPicker(Picker):
             d = cov_p.shape[0]
             return (
                 numpy.log(numpy.linalg.det(cov_q) / numpy.linalg.det(cov_p)) +
-                numpy.trace(cov_q_inv * cov_p) +
-                numpy.linalg.transpose(m_p - m_q) * cov_q_inv *
-                (m_p - m_q) - d) / 2
+                numpy.trace(numpy.dot(cov_q_inv, cov_p)) + numpy.dot(
+                    numpy.linalg.transpose(m_p - m_q), numpy.dot(cov_q_inv, (
+                        m_p - m_q))) - d) / 2
 
         return (kl(song_q, song_p) + kl(song_p, song_q)) / 2
 
@@ -78,11 +81,14 @@ class NCAPicker(Picker):
             distance_sum = 0
             for song_file in self.song_files:
                 # calc distance between song_file and current_song
-                dst = self.song_distances[self.current_song][song_file]
-                if dst is None:
-                    dst = self.distance(self.current_song, song_file)
-                    self.song_distances[self.current_song][song_file] = dst
-                    self.song_distances[song_file][self.current_song] = dst
+                if song_file == self.current_song:
+                    dst = self.streak * self.multiplier
+                else:
+                    dst = self.song_distances[self.current_song][song_file]
+                    if dst is None:
+                        dst = self.distance(self.current_song, song_file)
+                        self.song_distances[self.current_song][song_file] = dst
+                        self.song_distances[song_file][self.current_song] = dst
                 # calculcate sum of e to the power of -distance for each
                 # distance
                 distance_sum += numpy.power(numpy.e, -dst)
@@ -95,6 +101,8 @@ class NCAPicker(Picker):
                 if random.random() < chance:
                     break
             next_song = song_file
+        if self.current_song == next_song:
+            self.streak += 1
         self.current_song = next_song
         self.song_files.remove(next_song)
         return SongStruct(next_song, 0, None)
