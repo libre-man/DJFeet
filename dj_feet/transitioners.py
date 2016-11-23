@@ -8,6 +8,8 @@ import numpy as np
 # FOR TESTING PUPROSES:
 import random
 
+SAMPLING_RATE = 44100
+
 class Transitioner:
     def __init__(self):
         pass
@@ -75,7 +77,7 @@ class InfJukeboxTransitioner(Transitioner):
         # Check if the next song is the same as the current song.
         if prev_song.file_location is next_song.file_location:
             # If it is the same song, return the next segment.
-            return prev_song.time_series[seg_start, seg_end]
+            return prev_song.time_series[seg_start:seg_end]
         else:
             # If it's not the same song, compare both songs and find similar
             # frames to transition on. These are looked for in the upcoming
@@ -117,9 +119,11 @@ class InfJukeboxTransitioner(Transitioner):
         return prev_frame, next_frame
 
     def write_sample(self, sample):
-        librosa.output.write_wav('tests/test_data/songs/output.wav',
-                                 sample.time_series,
-                                 sample.sampling_rate)
+        librosa.output.write_wav("tests/test_data/songs/output.wav",
+                                 sample,
+                                 SAMPLING_RATE,
+                                 norm=False)
+        time_series, sampling_rate = librosa.load("tests/test_data/songs/output.wav", sr=44100, duration=10.0)
         # f_name = None
         # with NamedTemporaryFile("w+b", suffix=".wav", delete=False) as f:
         #     sample.export(f.name, format="mp3")

@@ -10,3 +10,14 @@ style:
 
 coverage:
 	pytest -v --cov-config=.coveragerc --cov=dj_feet tests/
+
+build:
+	python3 setup.py install
+	python3 setup.py build
+
+run:
+	make build
+	server
+
+clean:
+	rm -rf build/
