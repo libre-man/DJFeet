@@ -2,7 +2,7 @@ import pytest
 import os
 import sys
 from configparser import ConfigParser
-from helpers import MockingFunction
+from helpers import MockingFunction, EPSILON
 import random
 
 my_path = os.path.dirname(os.path.abspath(__file__))
@@ -108,6 +108,6 @@ def test_nca_picker_distance(nca_picker, same, songs_dir):
     print(song_file2)
     assert res_1 == res_2
     if same:
-        assert abs(res_1) <= sys.float_info.epsilon
+        assert abs(res_1) <= EPSILON
     else:
-        assert abs(res_1) > sys.float_info.epsilon
+        assert abs(res_1) > EPSILON

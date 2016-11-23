@@ -1,6 +1,7 @@
 import os
 import pytest
 
+EPSILON = 0.00000000001
 
 class MockingFunction():
     def __init__(self, func=None, simple=False, pack=False, amount=False):
