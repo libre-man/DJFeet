@@ -48,6 +48,10 @@ class NCAPicker(Picker):
             self.averages[song_file] = numpy.mean(mfcc, 1)
 
     def distance(self, song_q, song_p):
+        """Calculate the distance between two MFCCs. This is based on this
+        paper: http://cs229.stanford.edu/proj2009/RajaniEkkizogloy.pdf
+        """
+
         def kl(p, q):
             cov_p = self.covariances[p]
             cov_q = self.covariances[q]
@@ -64,6 +68,10 @@ class NCAPicker(Picker):
         return (kl(song_q, song_p) + kl(song_p, song_q)) / 2
 
     def get_next_song(self, user_feedback):
+        """Get the next song by calculcating the distance between this and all
+        the other songs and using NCA to pick a song. Based on this paper:
+        http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
+        """
         if self.current_song is None:
             next_song = random.choice(self.song_files)
         else:
@@ -75,12 +83,15 @@ class NCAPicker(Picker):
                     dst = self.distance(self.current_song, song_file)
                     self.song_distances[self.current_song][song_file] = dst
                     self.song_distances[song_file][self.current_song] = dst
-                # calculcate sum of e to the power of -distance for each distance
+                # calculcate sum of e to the power of -distance for each
+                # distance
                 distance_sum += numpy.power(numpy.e, -dst)
             for song_file, dist in self.song_distances.items():
-                # pick file with chance of e to the power of -distance divided by
+                # pick file with chance of e to the power of -distance divided
+                # by
                 # distance_sum
-                chance = self.distance(self.current_song, song_file) / distance_sum
+                chance = self.distance(self.current_song,
+                                       song_file) / distance_sum
                 if random.random() < chance:
                     break
             next_song = song_file
