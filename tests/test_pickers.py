@@ -112,6 +112,7 @@ def test_nca_picker_distance(nca_picker, same, songs_dir):
     else:
         assert abs(res_1) > EPSILON
 
+
 def test_nca_picker_next_song(nca_picker, monkeypatch):
     mock_random = MockingFunction(func=lambda: 0.99999999, simple=True)
     monkeypatch.setattr(random, 'random', mock_random)
