@@ -98,7 +98,8 @@ class NCAPicker(Picker):
                 if song_file == self.current_song:
                     chance = 1 / (1 + self.streak * self.multiplier)
                 else:
-                    chance = dists[self.current_song] / distance_sum
+                    chance = numpy.power(
+                        numpy.e, -dists[self.current_song]) / distance_sum
                 if random.random() < chance:
                     break
             next_song = song_file
