@@ -1,5 +1,6 @@
 setup:
 	apt-get -y install python3-numpy python-numpy
+	pip3 install --upgrade numpy
 	pip3 install -r requirements.txt
 	python3 setup.py install
 
