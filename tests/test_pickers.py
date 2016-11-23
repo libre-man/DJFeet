@@ -4,6 +4,7 @@ import sys
 from configparser import ConfigParser
 from helpers import MockingFunction
 import random
+import numpy
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
@@ -17,7 +18,7 @@ def picker_base():
     yield pickers.Picker()
 
 
-@pytest.fixture(params=[pickers.SimplePicker])
+@pytest.fixture(params=[pickers.SimplePicker, pickers.NCAPicker])
 def all_pickers(request):
     yield request.param
 
@@ -30,6 +31,11 @@ def songs_dir():
 @pytest.fixture
 def simple_picker(songs_dir):
     yield pickers.SimplePicker(songs_dir)
+
+
+@pytest.fixture
+def nca_picker(songs_dir):
+    yield pickers.NCAPicker(songs_dir)
 
 
 @pytest.fixture(params=[{}])
@@ -83,3 +89,20 @@ def test_simple_picker_working_non_direct(monkeypatch, simple_picker):
     simple_picker.get_next_song({})
     assert len(mock_is_file.args) == 3
     assert len(mock_random_choice.args) == 2
+
+
+@pytest.mark.parametrize('same', [True] + [False for _ in range(2)])
+def test_nca_picker_distance(nca_picker, same, songs_dir):
+    song_files = [f for _, __, f in os.walk(songs_dir)][0]
+
+    song_file1 = random.choice(song_files)
+    if same:
+        song_file2 = song_file1
+    else:
+        song_files.remove(song_file1)
+        song_file2 = random.choice(song_files)
+
+    res_1 = nca_picker.distance(song_file1, song_file2)
+    res_2 = nca_picker.distance(song_file2, song_file1)
+    assert res_1 == res_2
+    assert (res_1 == 0) if same else (res_1 != 0)

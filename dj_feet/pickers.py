@@ -45,7 +45,7 @@ class NCAPicker(Picker):
         self.averages = dict()
         self.covariances = dict()
         for song_file in self.song_files:
-            song, sr = librosa.load(song_file)
+            song, sr = librosa.load(os.path.join(song_folder, song_file))
             mfcc = librosa.feature.mfcc(song, sr, None, mfcc_amount)
             self.covariances[song_file] = numpy.cov(mfcc)
             self.averages[song_file] = numpy.mean(mfcc, 1)
@@ -65,7 +65,7 @@ class NCAPicker(Picker):
             return (
                 numpy.log(numpy.linalg.det(cov_q) / numpy.linalg.det(cov_p)) +
                 numpy.trace(numpy.dot(cov_q_inv, cov_p)) + numpy.dot(
-                    numpy.linalg.transpose(m_p - m_q), numpy.dot(cov_q_inv, (
+                    numpy.transpose(m_p - m_q), numpy.dot(cov_q_inv, (
                         m_p - m_q))) - d) / 2
 
         return (kl(song_q, song_p) + kl(song_p, song_q)) / 2
