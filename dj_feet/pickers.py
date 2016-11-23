@@ -82,22 +82,23 @@ class NCAPicker(Picker):
             distance_sum = 0
             for song_file in self.song_files:
                 # calc distance between song_file and current_song
-                if song_file == self.current_song:
-                    dst = self.streak * self.multiplier
-                else:
+                if song_file != self.current_song:
                     dst = self.song_distances[self.current_song][song_file]
                     if dst is None:
                         dst = self.distance(self.current_song, song_file)
                         self.song_distances[self.current_song][song_file] = dst
                         self.song_distances[song_file][self.current_song] = dst
-                # calculcate sum of e to the power of -distance for each
-                # distance
-                distance_sum += numpy.power(numpy.e, -dst)
+                    # calculcate sum of e to the power of -distance for each
+                    # distance
+                    distance_sum += numpy.power(numpy.e, -dst)
             for song_file, dists in self.song_distances.items():
                 # pick file with chance of e to the power of -distance divided
                 # by
                 # distance_sum
-                chance = dists[self.current_song] / distance_sum
+                if song_file == self.current_song:
+                    chance = 1 / (1 + self.streak * self.multiplier)
+                else:
+                    chance = dists[self.current_song] / distance_sum
                 if random.random() < chance:
                     break
             next_song = song_file
