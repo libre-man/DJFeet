@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 import librosa
 from pydub import AudioSegment
-from .helpers import SongStruct
+#from .helpers import SongStruct
+from .song import Song
 from tempfile import NamedTemporaryFile
-
+import numpy as np
+# FOR TESTING PUPROSES:
+import random
 
 class Transitioner:
     def __init__(self):
@@ -78,7 +81,7 @@ class InfJukeboxTransitioner(Transitioner):
             # frames to transition on. These are looked for in the upcoming
             # segment of the current song and the first *segment_size* of the
             # next song.
-            prev_frame, next_frame = find_similar_frames(prev_song, next_song,
+            prev_frame, next_frame = self.find_similar_frames(prev_song, next_song,
                                                          seg_start, seg_end)
             # When a frame to transition on in the current song is found,
             # calculate the time (in seconds) that is between the start of the
@@ -90,8 +93,8 @@ class InfJukeboxTransitioner(Transitioner):
             final_frame = next_song.frame_to_segment_time(self.segment_size,
                                                           prev_song_time,
                                                           next_frame)
-            return prev_song.time_series[seg_start:prev_frame].append(
-                next_song.time_series[next_frame:final_frame])
+            return np.append(prev_song.time_series[seg_start:prev_frame],
+                             next_song.time_series[next_frame:final_frame])
 
     def find_similar_frames(self, prev_song, next_song, seg_start, seg_end):
         """
@@ -107,5 +110,23 @@ class InfJukeboxTransitioner(Transitioner):
                                                       begin=True)
         next_seg = next_song.time_series[next_start:next_end]
 
-        
-        return 1, 1
+        # RANDOM FRAMES FOR TESTING PURPOSES
+        prev_frame = random.randint(seg_start, seg_end)
+        next_frame = random.randint(next_start, next_end)
+
+        return prev_frame, next_frame
+
+    def write_sample(self, sample):
+        librosa.output.write_wav('tests/test_data/songs/output.wav',
+                                 sample.time_series,
+                                 sample.sampling_rate)
+        # f_name = None
+        # with NamedTemporaryFile("w+b", suffix=".wav", delete=False) as f:
+        #     sample.export(f.name, format="mp3")
+        #     f_name = f.name
+        # with open(f_name, 'rb') as input_f, open(self.output, 'wb') as output:
+        #     buf = True
+        #     while buf:
+        #         buf = input_f.read(4096)
+        #         if buf:
+        #             output.write(buf)
