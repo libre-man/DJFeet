@@ -121,7 +121,7 @@ class InfJukeboxTransitioner(Transitioner):
                 corr = np.correlate(prev_song.time_series[prev_bt[p]:prev_bt[p + 1]],
                                     next_song.time_series[next_bt[n]:next_bt[n + 1]],
                                     mode="valid")
-                # experiment with highest vs lowest corr!
+                # experiment with highest vs lowest corr!   
                 if corr[0] < highest:
                     highest = corr[0]
                     highest_n = next_bt[n]
