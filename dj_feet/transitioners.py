@@ -74,6 +74,7 @@ class InfJukeboxTransitioner(Transitioner):
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
         seg_start, seg_end = prev_song.next_segment(self.segment_size)
+
         # Check if the next song is the same as the current song.
         if prev_song.file_location is next_song.file_location:
             # If it is the same song, return the next segment.
@@ -95,6 +96,7 @@ class InfJukeboxTransitioner(Transitioner):
             final_frame = next_song.frame_to_segment_time(self.segment_size,
                                                           prev_song_time,
                                                           next_frame)
+
             return np.append(prev_song.time_series[seg_start:prev_frame],
                              next_song.time_series[next_frame:final_frame])
 
@@ -106,17 +108,26 @@ class InfJukeboxTransitioner(Transitioner):
         Returns a tuple of the frames (frame_prev_song, frame_next_song) that
         are found most similar.
         """
-        prev_seg = prev_song.time_series[seg_start:seg_end]
-        # Find the first segment of the next song.
+        prev_bt = prev_song.beat_track_in_segment(seg_start, seg_end)
         next_start, next_end = next_song.next_segment(self.segment_size,
                                                       begin=True)
-        next_seg = next_song.time_series[next_start:next_end]
+        next_bt = next_song.beat_track_in_segment(next_start, next_end)
 
-        # RANDOM FRAMES FOR TESTING PURPOSES
-        prev_frame = random.randint(seg_start, seg_end)
-        next_frame = random.randint(next_start, next_end)
-
-        return prev_frame, next_frame
+        highest = 9999999
+        highest_n = 0
+        highest_p = 0
+        for p in range(len(prev_bt) - 1):
+            for n in range(len(next_bt) - 1):
+                corr = np.correlate(prev_song.time_series[prev_bt[p]:prev_bt[p + 1]],
+                                    next_song.time_series[next_bt[n]:next_bt[n + 1]],
+                                    mode="valid")
+                # experiment with highest vs lowest corr!
+                if corr[0] < highest:
+                    highest = corr[0]
+                    highest_n = next_bt[n]
+                    highest_p = prev_bt[p]
+        print(highest_n, highest_p)
+        return highest_n, highest_p
 
     def write_sample(self, sample):
         librosa.output.write_wav("tests/test_data/songs/output.wav",
