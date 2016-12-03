@@ -13,14 +13,14 @@ class Song:
                                                                      self.sampling_rate)
         self.beat_track = librosa.core.frames_to_samples(beat_track_frames)
 
-    def next_segment(self, segment_size, begin=False):
+    def next_segment(self, segment_size, begin=False, piemels=False):
         if begin:
-            time_vector = np.array([30, 30 + segment_size])
+            time_vector = np.array([0, 30])
         else:
             time_vector = np.array([self.curr_time,
                                    segment_size + self.curr_time])
             self.curr_time += segment_size
-
+        
         start, end = librosa.core.time_to_samples(time_vector,
                                                  self.sampling_rate)
         return (start, end)

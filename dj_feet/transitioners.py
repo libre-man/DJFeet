@@ -5,8 +5,6 @@ from pydub import AudioSegment
 from .song import Song
 from tempfile import NamedTemporaryFile
 import numpy as np
-# FOR TESTING PUPROSES:
-import random
 
 SAMPLING_RATE = 32000
 
@@ -113,7 +111,7 @@ class InfJukeboxTransitioner(Transitioner):
                                                       begin=True)
         next_bt = next_song.beat_track_in_segment(next_start, next_end)
 
-        highest = 9999999
+        highest = -9999999
         highest_n = 0
         highest_p = 0
         for p in range(len(prev_bt) - 1):
@@ -121,26 +119,16 @@ class InfJukeboxTransitioner(Transitioner):
                 corr = np.correlate(prev_song.time_series[prev_bt[p]:prev_bt[p + 1]],
                                     next_song.time_series[next_bt[n]:next_bt[n + 1]],
                                     mode="valid")
-                # experiment with highest vs lowest corr!   
-                if corr[0] < highest:
+                # experiment with highest vs lowest corr!
+                if corr[0] >= highest:
                     highest = corr[0]
                     highest_n = next_bt[n]
                     highest_p = prev_bt[p]
-        print(highest_n, highest_p)
-        return highest_n, highest_p
+        print(highest_p, highest_n)
+        return highest_p, highest_n
 
     def write_sample(self, sample):
         librosa.output.write_wav("tests/test_data/songs/output.wav",
                                  sample,
                                  SAMPLING_RATE,
                                  norm=False)
-        # f_name = None
-        # with NamedTemporaryFile("w+b", suffix=".wav", delete=False) as f:
-        #     sample.export(f.name, format="mp3")
-        #     f_name = f.name
-        # with open(f_name, 'rb') as input_f, open(self.output, 'wb') as output:
-        #     buf = True
-        #     while buf:
-        #         buf = input_f.read(4096)
-        #         if buf:
-        #             output.write(buf)
