@@ -6,6 +6,7 @@ import os
 import random
 import librosa
 import numpy
+from sklearn.decomposition import PCA
 
 
 class Picker:
@@ -33,22 +34,45 @@ class SimplePicker(Picker):
 
 
 class NCAPicker(Picker):
-    def __init__(self, song_folder, mfcc_amount=20, current_multiplier=0.5):
+    def __init__(self,
+                 song_folder,
+                 mfcc_amount=20,
+                 current_multiplier=0.5,
+                 weight_amount=3,
+                 default_weights=None):
         self.current_song = None
         self.multiplier = current_multiplier
         self.streak = 0
+        self.weight_amount = weight_amount
+        if default_weights is None:
+            self.weigts = [0.5, 0.25, 0.25]
+        else:
+            self.weigts = default_weights
 
         self.song_folder = song_folder
         self.song_files = [f for _, __, f in os.walk(song_folder)][0]
 
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
-        self.averages = dict()
-        self.covariances = dict()
+        self.song_properties = dict()
         for song_file in self.song_files:
             song, sr = librosa.load(os.path.join(song_folder, song_file))
             mfcc = librosa.feature.mfcc(song, sr, None, mfcc_amount)
-            self.covariances[song_file] = numpy.cov(mfcc)
-            self.averages[song_file] = numpy.mean(mfcc, 1)
+            covariance = numpy.cov(mfcc)
+            pca = PCA(weight_amount)
+            pca.fit(mfcc.T)
+            props = (numpy.linalg.cholesky(covariance), numpy.mean(mfcc, 1),
+                     pca.components_.T)
+            self.song_properties[song_file] = props
+
+    def get_w_matrix(self, pca):
+        return numpy.array([sum([elem * self.weigts[i]
+                                 for i, elem in enumerate(row)])
+                            for row in pca])
+
+    def covariance(self, song_file):
+        cholsky, _, pca = self.song_properties[song_file]
+        d = numpy.dot(numpy.diag(self.get_w_matrix(pca)), cholsky)
+        return numpy.dot(d, d.T)
 
     def distance(self, song_q, song_p):
         """Calculate the distance between two MFCCs. This is based on this
@@ -56,11 +80,11 @@ class NCAPicker(Picker):
         """
 
         def kl(p, q):
-            cov_p = self.covariances[p]
-            cov_q = self.covariances[q]
+            cov_p = self.covariance(p)
+            cov_q = self.covariance(q)
             cov_q_inv = numpy.linalg.inv(cov_q)
-            m_p = self.averages[p]
-            m_q = self.averages[q]
+            m_p = self.song_properties[p][1]
+            m_q = self.song_properties[q][1]
             d = cov_p.shape[0]
             return (
                 numpy.log(numpy.linalg.det(cov_q) / numpy.linalg.det(cov_p)) +
@@ -99,8 +123,7 @@ class NCAPicker(Picker):
                     chance = 1 / (1 + self.streak * self.multiplier)
                 else:
                     dist = self.song_distances[self.current_song][song_file]
-                    chance = numpy.power(
-                        numpy.e, -dist) / distance_sum
+                    chance = numpy.power(numpy.e, -dist) / distance_sum
                 if random.random() < chance:
                     break
             next_song = song_file
