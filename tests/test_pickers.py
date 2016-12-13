@@ -4,6 +4,7 @@ import sys
 from configparser import ConfigParser
 from helpers import MockingFunction, EPSILON
 import random
+from pprint import pprint
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
@@ -34,7 +35,7 @@ def simple_picker(songs_dir):
 
 @pytest.fixture
 def nca_picker(songs_dir):
-    yield pickers.NCAPicker(songs_dir)
+    yield pickers.NCAPicker(songs_dir, cache_dir='/tmp/sdaas')
 
 
 @pytest.fixture(params=[{}])
@@ -103,9 +104,6 @@ def test_nca_picker_distance(nca_picker, same, songs_dir):
 
     res_1 = nca_picker.distance(song_file1, song_file2)
     res_2 = nca_picker.distance(song_file2, song_file1)
-    print(res_1)
-    print(song_file1)
-    print(song_file2)
     assert res_1 == res_2
     if same:
         assert abs(res_1) <= EPSILON
@@ -113,13 +111,15 @@ def test_nca_picker_distance(nca_picker, same, songs_dir):
         assert abs(res_1) > EPSILON
 
 
-def test_nca_picker_next_song(nca_picker, monkeypatch):
+def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
     mock_random = MockingFunction(func=lambda: 0.99999999, simple=True)
     monkeypatch.setattr(random, 'random', mock_random)
     next_song = nca_picker.get_next_song({})
     next_song2 = nca_picker.get_next_song({})
     assert next_song == next_song2
     monkeypatch.undo()
-    for _ in range(5):
+    for _ in range(50):
         next_song2 = nca_picker.get_next_song({})
+    if next_song == next_song2:
+        pprint(nca_picker.song_distances)
     assert next_song != next_song2
