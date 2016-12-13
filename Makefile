@@ -4,6 +4,7 @@ setup:
 	python3 setup.py install
 
 test:
+	-mkdir /tmp/sdaas
 	pytest -v  tests
 
 style:
