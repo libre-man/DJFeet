@@ -1,7 +1,7 @@
 import os
 import pytest
 
-EPSILON = 0.00000000001
+EPSILON = 0.000000001
 
 
 class MockingFunction():
