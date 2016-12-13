@@ -82,8 +82,9 @@ class InfJukeboxTransitioner(Transitioner):
             # frames to transition on. These are looked for in the upcoming
             # segment of the current song and the first *segment_size* of the
             # next song.
-            prev_frame, next_frame = self.find_similar_frames(prev_song, next_song,
+            transition, prev_frame, next_frame = self.combine_similar_frames(prev_song, next_song,
                                                          seg_start, seg_end)
+
             # When a frame to transition on in the current song is found,
             # calculate the time (in seconds) that is between the start of the
             # next segment of this song and the found frame.
@@ -95,10 +96,10 @@ class InfJukeboxTransitioner(Transitioner):
                                                           prev_song_time,
                                                           next_frame)
 
-            return np.append(prev_song.time_series[seg_start:prev_frame],
+            return np.append(np.append(prev_song.time_series[seg_start:prev_frame], transition),
                              next_song.time_series[next_frame:final_frame])
 
-    def find_similar_frames(self, prev_song, next_song, seg_start, seg_end):
+    def combine_similar_frames(self, prev_song, next_song, seg_start, seg_end):
         """
         Find a similar frame in the previous (current) and the next song. Only
         frames in the next segment of the current song and the first segment
@@ -114,18 +115,39 @@ class InfJukeboxTransitioner(Transitioner):
         highest = -9999999
         highest_n = 0
         highest_p = 0
-        for p in range(len(prev_bt) - 1):
-            for n in range(len(next_bt) - 1):
+        for p in range(len(prev_bt) - 2):
+            for n in range(len(next_bt) - 2):
                 corr = np.correlate(prev_song.time_series[prev_bt[p]:prev_bt[p + 1]],
                                     next_song.time_series[next_bt[n]:next_bt[n + 1]],
                                     mode="valid")
-                # experiment with highest vs lowest corr!
+# TODO: Optimize the way to interpret the cross correlation!!
                 if corr[0] >= highest:
                     highest = corr[0]
-                    highest_n = next_bt[n]
-                    highest_p = prev_bt[p]
+                    highest_n = n
+                    highest_p = p
         print(highest_p, highest_n)
-        return highest_p, highest_n
+        transition = self.fade_frames(prev_song, prev_bt, highest_p, next_song, next_bt, highest_n)
+        return transition, prev_bt[highest_p - 1], next_bt[highest_n + 1]
+
+    def fade_frames(self, prev_song, prev_bt, p, next_song, next_bt, n):
+        """
+        Lineare crossfade
+        """
+        prev_seg = prev_song.time_series[prev_bt[p]:prev_bt[p + 1]]
+        next_seg = next_song.time_series[next_bt[n]:next_bt[n + 1]]
+        final_seg = []
+        prev_delta = 1 / len(prev_seg)
+        next_delta = 1 / len(next_seg)
+        for p in range(len(prev_seg)):
+            final_seg.append(prev_seg[p] * (1 - prev_delta * p))
+
+        for n in range(len(next_seg)):
+            if n > len(prev_seg) - 1:
+                final_seg.append(next_seg[n] * (prev_delta * n))
+            else:
+                final_seg[n] += next_seg[n] * (prev_delta * n)
+
+        return final_seg
 
     def write_sample(self, sample):
         librosa.output.write_wav("tests/test_data/songs/output.wav",
