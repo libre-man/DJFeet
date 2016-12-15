@@ -56,6 +56,18 @@ def user_feedback(request):
     yield request.param
 
 
+@pytest.fixture
+def random_song_file(songs_dir):
+    song_files = [
+        os.path.join(songs_dir, f) for f in os.listdir(songs_dir)
+        if os.path.isfile(os.path.join(songs_dir, f))
+    ]
+    yield random.choice(song_files)
+
+
+random_song_file2 = random_song_file
+
+
 def test_base_picker(picker_base, user_feedback):
     assert isinstance(picker_base, pickers.Picker)
     with pytest.raises(NotImplementedError):
@@ -105,18 +117,13 @@ def test_simple_picker_working_non_direct(monkeypatch, simple_picker):
 
 
 @pytest.mark.parametrize('same', [True] + [False for _ in range(2)])
-def test_nca_picker_distance(nca_picker, same, songs_dir):
-    song_files = [f for _, __, f in os.walk(songs_dir)][0]
-
-    song_file1 = random.choice(song_files)
+def test_nca_picker_distance(nca_picker, same, songs_dir, random_song_file,
+                             random_song_file2):
     if same:
-        song_file2 = song_file1
-    else:
-        song_files.remove(song_file1)
-        song_file2 = random.choice(song_files)
+        random_song_file2 = random_song_file
 
-    res_1 = nca_picker.distance(song_file1, song_file2)
-    res_2 = nca_picker.distance(song_file2, song_file1)
+    res_1 = nca_picker.distance(random_song_file, random_song_file2)
+    res_2 = nca_picker.distance(random_song_file2, random_song_file)
     assert res_1 == res_2
     if same:
         assert abs(res_1) <= EPSILON
@@ -125,7 +132,7 @@ def test_nca_picker_distance(nca_picker, same, songs_dir):
 
 
 def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
-    mock_random = MockingFunction(func=lambda: 1, simple=True)
+    mock_random = MockingFunction(func=lambda: 0.99999999999, simple=True)
     monkeypatch.setattr(random, 'random', mock_random)
     next_song = nca_picker.get_next_song({})
     next_song2 = nca_picker.get_next_song({})
@@ -142,40 +149,45 @@ def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
     assert len(songs) == 51
 
 
-@pytest.mark.parametrize("kwargs", [
-    {},
-    {
-        'weight_amount': 20,
-        'mfcc_amount': 20
-    }, {
-        'weight_amount': 2,
-        'weights': [0.5, 0.5]
-    }, {
-        'weight_amount': 2,
-        'weights': [0, 1]
-    }, pytest.mark.xfail({
-        'weight_amount': 2,
-        'weights': [0, 2]
-    }, raises=ValueError, strict=True), pytest.mark.xfail({
-        'weight_amount': 2,
-        'weights': [0.25, 0.25, 0.25, 0.25]
-    }, raises=ValueError, strict=True), pytest.mark.xfail({
-        'weight_amount': 20,
-        'mfcc_amount': 19
-    }, raises=ValueError, strict=True),
-])
+@pytest.mark.parametrize(
+    "kwargs", [
+        {},
+        {
+            'weight_amount': 20,
+            'mfcc_amount': 20
+        },
+        {
+            'weight_amount': 2,
+            'weights': [0.5, 0.5]
+        },
+        {
+            'weight_amount': 2,
+            'weights': [0, 1]
+        },
+        pytest.mark.xfail({
+            'weight_amount': 2,
+            'weights': [0, 2]
+        }, raises=ValueError, strict=True),
+        pytest.mark.xfail({
+            'weight_amount': 2,
+            'weights': [0.25, 0.25, 0.25, 0.25]
+        }, raises=ValueError, strict=True),
+        pytest.mark.xfail({
+            'weight_amount': 20,
+            'mfcc_amount': 19
+        }, raises=ValueError, strict=True),
+    ])
 def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
     monkeypatch.setattr(pickers.NCAPicker, 'calculate_songs_characteristics',
-                        lambda x, y: True)
+                        lambda x, y, z: (True, True))
     pickers.NCAPicker(songs_dir, cache_dir=cache_dir, **kwargs)
 
 
 @slow
 @pytest.mark.parametrize("amount", [1, 5, 20])
-def test_get_mfcc(songs_dir, amount):
-    song_file = os.path.join(songs_dir, random.choice([f for _, __, f in
-                                                       os.walk(songs_dir)][0]))
-    song, sr = librosa.load(song_file)
+def test_get_mfcc(random_song_file, amount):
+    song_file = random.choice(random_song_files)
+    song, sr = librosa.load(random_song_file)
     mfcc = librosa.feature.mfcc(song, sr, None, amount)
     same = mfcc == pickers.NCAPicker.get_mfcc(song_file, amount)
     assert hasattr(same, '__iter__') and same.all()

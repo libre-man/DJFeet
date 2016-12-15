@@ -8,6 +8,7 @@ import librosa
 import numpy
 from sklearn.decomposition import PCA
 from copy import copy
+from pprint import pprint
 
 
 class Picker:
@@ -21,6 +22,7 @@ class Picker:
 
 class SimplePicker(Picker):
     def __init__(self, song_folder):
+        super(SimplePicker, self).__init__()
         self.song_folder = song_folder
         self.song_files = [f for _, __, f in os.walk(song_folder)][0]
 
@@ -42,92 +44,105 @@ class NCAPicker(Picker):
                  weight_amount=4,
                  cache_dir=None,
                  weights=None):
-        self.current_song = None
-        self.multiplier = current_multiplier
-        self.streak = 0
-        self.weight_amount = weight_amount
-        self.song_folder = song_folder
+        super(NCAPicker, self).__init__()
+
         if weights is None:
             self.weights = [1 / weight_amount for _ in range(weight_amount)]
         else:
             self.weights = weights
+
         if abs(sum(self.weights) - 1) > EPSILON or len(
-                self.weights) != self.weight_amount:
+                self.weights) != weight_amount:
             raise ValueError(
                 "The amount of weights should be equal to `weight_amount`"
                 " and sum to 1")
         elif mfcc_amount < weight_amount:
             raise ValueError("You cannot have more weights than mfcc vectors")
 
-        self.song_folder = song_folder
-        self.cache_dir = cache_dir
-
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
         self.song_properties = dict()
-        self.song_files = list()
+        self._song_files = [
+            os.path.join(song_folder, f) for f in os.listdir(song_folder)
+            if os.path.isfile(os.path.join(song_folder, f))
+        ]
+        self.song_files = copy(self._song_files)
 
-        self.calculate_songs_characteristics(mfcc_amount)
-        self._song_files = copy(self.song_files)
+        self.pca, self.song_properties = self.calculate_songs_characteristics(
+            mfcc_amount, cache_dir)
 
-    def calculate_songs_characteristics(self, mfcc_amount):
-        """Restart with the full amount of songs. This does not alter the
-        amount of weights. CAUTION: this call might be slow!"""
-        self.song_files = [f for _, __, f in os.walk(self.song_folder)][0]
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
-        self.song_properties = dict()
+        self.current_song = None
+        self.multiplier = current_multiplier
+        self.streak = 0
+
+    def calculate_songs_characteristics(self, mfcc_amount, cache_dir):
+        """Calculate the songs characteristics. These are returned as a tuple
+        of the PCA and dictionary for in which each song has a tuple of their
+        cholesky decomposition and the mean of their mfcc.
+        """
         mfccs = dict()
         average = numpy.zeros(mfcc_amount)
+        song_properties = dict()
+
+        # Calculate the average 20D feature vector for the mfccs
         for song_file in self.song_files:
-            filename, _ = os.path.splitext(song_file)
-            if self.cache_dir and os.path.exists(
-                    os.path.join(self.cache_dir, filename) + os.extsep +
-                    'npy'):
+            filename, _ = os.path.splitext(os.path.basename(song_file))
+            print(filename)
+            if cache_dir and os.path.isfile(
+                    os.path.join(cache_dir, filename) + os.extsep + 'npy'):
                 mfcc = numpy.load(
-                    os.path.join(self.cache_dir, filename) + os.extsep + 'npy')
+                    os.path.join(cache_dir, filename) + os.extsep + 'npy')
             else:
-                mfcc = self.get_mfcc(
-                    os.path.join(self.song_folder, song_file), mfcc_amount)
-                if self.cache_dir:
-                    numpy.save(os.path.join(self.cache_dir, filename), mfcc)
+                mfcc = self.get_mfcc(song_file, mfcc_amount)
+                if cache_dir:
+                    numpy.save(os.path.join(cache_dir, filename), mfcc)
             mfccs[song_file] = mfcc
-
             average += mfcc.mean(1)
-            print('step')
 
+        # TODO: use the songs lenghts as weights
         average = average / len(self.song_files)
-        print('step 1 done')
         average_covariance = numpy.array(
             [numpy.zeros(mfcc_amount) for _ in range(mfcc_amount)])
 
+        # Now calculate the centered mfcc and covariance matrix for each song
+        # and keep a running average of the average covariance matrix.
         for song_file, mfcc in mfccs.items():
             mfcc = (mfcc.T - average).T
             covariance = numpy.cov(mfcc)
             average_covariance += covariance
             props = (numpy.linalg.cholesky(covariance), numpy.mean(mfcc, 1))
-            self.song_properties[song_file] = props
+            song_properties[song_file] = props
 
+        # Do PCA on the average covariance matrix
         average_covariance = average_covariance / len(self.song_files)
-        pca = PCA(self.weight_amount)
+        pca = PCA(len(self.weights))
         pca.fit(average_covariance.T)
-        self.pca = pca.components_.T
+
+        return pca.components_.T, song_properties
 
     def reset_songs(self):
+        """Restart with the full amount of songs. This does not alter the
+        weights."""
         self.song_files = copy(self._song_files)
 
     @staticmethod
     def get_mfcc(song_file, mfcc_amount):
+        """Calculate the mfcc for the given song."""
         song, sr = librosa.load(song_file)
         return librosa.feature.mfcc(song, sr, None, mfcc_amount)
 
     def get_w_matrix(self, pca):
+        """Get a weighted pca matrix"""
         return numpy.array([
             sum((elem * self.weights[i] for i, elem in enumerate(row)))
             for row in pca
         ])
 
     def covariance(self, song_file):
-        cholsky, _ = self.song_properties[song_file]
-        d = numpy.dot(numpy.diag(self.get_w_matrix(self.pca)), cholsky)
+        """Calculate a (approximation) of the covariance matrix using PCA and a
+        cholesky decomposition."""
+        cholesky, _ = self.song_properties[song_file]
+        d = numpy.dot(numpy.diag(self.get_w_matrix(self.pca)), cholesky)
         return numpy.dot(d, d.T)
 
     def distance(self, song_q, song_p):
@@ -151,62 +166,79 @@ class NCAPicker(Picker):
         return (kl(song_q, song_p) + kl(song_p, song_q)) / 2
 
     def get_next_song(self, user_feedback):
-        """Get the next song by calculcating the distance between this and all
-        the other songs and using NCA to pick a song. Based on this paper:
-        http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
-        """
-
-        max_dst = 0
-        dsts = []
+        """Get the next song to play. Do this by random for the first and
+        otherwise use `_find_next_song`"""
+        # We have only one song remaining so we won't be able to pick good new
+        # songs. So reset all the available songs.
         if len(self.song_files) == 1:
             self.reset_songs()
-        print(len(self.song_files))
-        if self.current_song is None:
+
+        if self.current_song is None:  # First pick, simply select random
             next_song = random.choice(self.song_files)
         else:
-            distance_sum = 0
-            for song_file in self.song_files:
-                # calc distance between song_file and current_song
-                if song_file != self.current_song:
-                    dst = self.song_distances[self.current_song][song_file]
-                    if dst is None:
-                        dst = self.distance(self.current_song, song_file)
-                        self.song_distances[self.current_song][song_file] = dst
-                        self.song_distances[song_file][self.current_song] = dst
-                    # calculcate sum of e to the power of -distance for each
-                    # distance
-                    max_dst = max(max_dst, dst)
-                    dsts.append(dst)
-            factor = 100 / max(max_dst, 1)
-            print('max:', max_dst)
-            for dst in dsts:
-                distance_sum += numpy.power(numpy.e, -(dst * factor))
-            chances = []
-            for song_file in self.song_files:
-                # pick file with chance of e to the power of -distance divided
-                # by distance_sum
-                if song_file == self.current_song:
-                    chance = 1 / (1 + self.streak * self.multiplier)
-                else:
-                    dst = self.song_distances[self.current_song][song_file]
-                    print(self.current_song, song_file, dst * factor, " ",
-                          factor, " ", distance_sum)
-                    chance = numpy.power(numpy.e,
-                                         -(dst * factor)) / distance_sum
-                chances.append((song_file, chance))
-            chances.sort(key=lambda x: x[1])
-            print('sorted')
-            for song_file, chance in chances:
-                print(self.current_song, song_file, chance)
-                if random.random() < chance:
-                    print('picked')
-                    break
-            next_song = song_file
-        if self.current_song == next_song:
+            next_song = self._find_next_song()
+
+        if self.current_song == next_song:  # Kept same song
             self.streak += 1
         elif self.current_song is not None:
+            # Remove the old song from the available so we have fresh tunes
             self.song_files.remove(self.current_song)
             self.streak = 0
+
         self.current_song = next_song
-        random.shuffle(self.song_files)
         return SongStruct(next_song, 0, None)
+
+    def _find_next_song(self):
+        """Find the next song by getting the distance between the current and
+        the potential song, doing softmax with these distances and getting one
+        by chance. Based on this paper:
+        http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
+        """
+        max_dst = 0
+        for song_file in self.all_but_current_song():
+            # calc distance between song_file and current_song
+            dst = self.song_distances[self.current_song][song_file]
+            if dst is None:
+                dst = self.distance(self.current_song, song_file)
+                self.song_distances[self.current_song][song_file] = dst
+                self.song_distances[song_file][self.current_song] = dst
+
+            max_dst = max(max_dst, dst)
+
+        # Find the max distance and normalize it to 100. This is because of
+        # floating point errors when doing something to the power of a very
+        # large negative number
+        factor = 100 / max(max_dst, 1)
+
+        # Now calculate the distance sum needed for softmax
+        distance_sum = 0
+        for song_file in self.all_but_current_song():
+            dst = self.song_distances[self.current_song][song_file]
+            distance_sum += numpy.power(numpy.e, -(dst * factor))
+
+        chances = []
+        for song_file in self.song_files:
+            # Append the softmax chances to the chances list
+            if song_file == self.current_song:
+                chance = 1 / (1 + self.streak * self.multiplier)
+            else:
+                dst = self.song_distances[self.current_song][song_file]
+                chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
+            chances.append((song_file, chance))
+
+        # Sort the chances by descending chance
+        chances.sort(key=lambda x: x[1])
+
+        # We do a range 10 so we are almost
+        for _ in range(10):
+            for song_file, chance in chances:
+                if random.random() < chance:
+                    return song_file
+        return chances[0]
+
+    def all_but_current_song(self):
+        """A generator that yields all but the current song of all played
+        songs."""
+        for song_file in self.song_files:
+            if song_file != self.current_song:
+                yield song_file
