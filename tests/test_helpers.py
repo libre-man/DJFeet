@@ -13,9 +13,8 @@ import dj_feet.helpers as helpers
 @pytest.mark.parametrize("file_location, start_pos, end_pos", [('/', 2, None)])
 def test_song_struct(file_location, start_pos, end_pos):
     struct = helpers.SongStruct(file_location, start_pos, end_pos)
-    struct2 = helpers.SongStruct(file_location=file_location,
-                                 start_pos=start_pos,
-                                 end_pos=end_pos)
+    struct2 = helpers.SongStruct(
+        file_location=file_location, start_pos=start_pos, end_pos=end_pos)
 
     assert struct[0] == file_location
     assert struct[1] == start_pos
@@ -68,8 +67,10 @@ class SubClassMultipleDouble(SubClassMultiple, Stub):
     (SubClassOneOne, {SubClassTwoOne}),
     (A, {B}),
     (SubClassOneTwo, set()),
-    (BaseClass, {SubClassOneOne, SubClassOneTwo, SubClassMultipleDouble,
-                 SubClassMultiple, SubClassTwoOne}),
+    (BaseClass, {
+        SubClassOneOne, SubClassOneTwo, SubClassMultipleDouble,
+        SubClassMultiple, SubClassTwoOne
+    }),
 ])
 def test_get_all_subclasses(baseclass, expected):
     assert helpers.get_all_subclasses(baseclass) == expected

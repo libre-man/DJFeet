@@ -7,6 +7,7 @@ import random
 import librosa
 import numpy
 from sklearn.decomposition import PCA
+from copy import copy
 
 
 class Picker:
@@ -38,28 +39,37 @@ class NCAPicker(Picker):
                  song_folder,
                  mfcc_amount=20,
                  current_multiplier=0.5,
-                 weight_amount=3,
+                 weight_amount=20,
                  cache_dir=None,
                  default_weights=None):
         self.current_song = None
         self.multiplier = current_multiplier
         self.streak = 0
         self.weight_amount = weight_amount
+        self.song_folder = song_folder
         if default_weights is None:
             self.weigts = [1 / weight_amount for _ in range(weight_amount)]
         else:
             self.weigts = default_weights
 
         self.song_folder = song_folder
-        self.song_files = [f for _, __, f in os.walk(song_folder)][0]
         self.cache_dir = cache_dir
-        self.reset_songs()
 
-    def reset_songs(self):
-        """Restart with the full amount of songs. This does not alter the
-        amount of weights. CAUTION: this call might be slow!"""
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
         self.song_properties = dict()
+        self.song_files = list()
+
+        self.calculate_songs_characteristics(mfcc_amount)
+        self._song_files = copy(self.song_files)
+
+    def calculate_songs_characteristics(self, mfcc_amount):
+        """Restart with the full amount of songs. This does not alter the
+        amount of weights. CAUTION: this call might be slow!"""
+        self.song_files = [f for _, __, f in os.walk(self.song_folder)][0]
+        self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
+        self.song_properties = dict()
+        mfccs = dict()
+        average = numpy.zeros(mfcc_amount)
         for song_file in self.song_files:
             filename, _ = os.path.splitext(song_file)
             if self.cache_dir and os.path.exists(
@@ -69,16 +79,33 @@ class NCAPicker(Picker):
                     os.path.join(self.cache_dir, filename) + os.extsep + 'npy')
             else:
                 mfcc = self.get_mfcc(
-                    os.path.join(song_folder, song_file), mfcc_amount)
+                    os.path.join(self.song_folder, song_file), mfcc_amount)
                 if self.cache_dir:
-                    numpy.save(os.path.join(cache_dir, filename), mfcc)
-            covariance = numpy.cov(mfcc)
-            pca = PCA(self.weight_amount)
-            pca.fit(mfcc.T)
-            props = (numpy.linalg.cholesky(covariance), numpy.mean(mfcc, 1),
-                     pca.components_.T)
+                    numpy.save(os.path.join(self.cache_dir, filename), mfcc)
+            mfccs[song_file] = mfcc
 
+            average += mfcc.mean(1)
+            print('step')
+
+        average = average / len(self.song_files)
+        print('step 1 done')
+        average_covariance = numpy.array(
+            [numpy.zeros(mfcc_amount) for _ in range(mfcc_amount)])
+
+        for song_file, mfcc in mfccs.items():
+            mfcc = (mfcc.T - average).T
+            covariance = numpy.cov(mfcc)
+            average_covariance += covariance
+            props = (numpy.linalg.cholesky(covariance), numpy.mean(mfcc, 1))
             self.song_properties[song_file] = props
+
+        average_covariance = average_covariance / len(self.song_files)
+        pca = PCA(self.weight_amount)
+        pca.fit(average_covariance.T)
+        self.pca = pca.components_.T
+
+    def reset_songs(self):
+        self.song_files = copy(self._song_files)
 
     @staticmethod
     def get_mfcc(song_file, mfcc_amount):
@@ -87,13 +114,13 @@ class NCAPicker(Picker):
 
     def get_w_matrix(self, pca):
         return numpy.array([
-            sum([elem * self.weigts[i] for i, elem in enumerate(row)])
+            sum((elem * self.weigts[i] for i, elem in enumerate(row)))
             for row in pca
         ])
 
     def covariance(self, song_file):
-        cholsky, _, pca = self.song_properties[song_file]
-        d = numpy.dot(numpy.diag(self.get_w_matrix(pca)), cholsky)
+        cholsky, _ = self.song_properties[song_file]
+        d = numpy.dot(numpy.diag(self.get_w_matrix(self.pca)), cholsky)
         return numpy.dot(d, d.T)
 
     def distance(self, song_q, song_p):
@@ -124,8 +151,9 @@ class NCAPicker(Picker):
 
         max_dst = 0
         dsts = []
-        if not self.song_files:
+        if len(self.song_files) == 1:
             self.reset_songs()
+        print(len(self.song_files))
         if self.current_song is None:
             next_song = random.choice(self.song_files)
         else:
@@ -146,6 +174,7 @@ class NCAPicker(Picker):
             print('max:', max_dst)
             for dst in dsts:
                 distance_sum += numpy.power(numpy.e, -(dst * factor))
+            chances = []
             for song_file in self.song_files:
                 # pick file with chance of e to the power of -distance divided
                 # by distance_sum
@@ -157,6 +186,10 @@ class NCAPicker(Picker):
                           factor, " ", distance_sum)
                     chance = numpy.power(numpy.e,
                                          -(dst * factor)) / distance_sum
+                chances.append((song_file, chance))
+            chances.sort(key=lambda x: x[1])
+            print('sorted')
+            for song_file, chance in chances:
                 print(self.current_song, song_file, chance)
                 if random.random() < chance:
                     print('picked')
