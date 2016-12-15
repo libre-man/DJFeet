@@ -230,11 +230,13 @@ class NCAPicker(Picker):
         chances.sort(key=lambda x: x[1])
 
         # We do a range 10 so we are almost
+        next_song = chances[0]
         for _ in range(10):
             for song_file, chance in chances:
                 if random.random() < chance:
-                    return song_file
-        return chances[0]
+                    next_song = song_file
+                    break
+        return next_song
 
     def all_but_current_song(self):
         """A generator that yields all but the current song of all played
