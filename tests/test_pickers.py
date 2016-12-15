@@ -65,7 +65,14 @@ def random_song_file(songs_dir):
     yield random.choice(song_files)
 
 
-random_song_file2 = random_song_file
+@pytest.fixture
+def random_song_files(songs_dir):
+    song_files = [
+        os.path.join(songs_dir, f) for f in os.listdir(songs_dir)
+        if os.path.isfile(os.path.join(songs_dir, f))
+    ]
+    random.shuffle(song_files)
+    yield song_files
 
 
 def test_base_picker(picker_base, user_feedback):
@@ -117,13 +124,15 @@ def test_simple_picker_working_non_direct(monkeypatch, simple_picker):
 
 
 @pytest.mark.parametrize('same', [True] + [False for _ in range(2)])
-def test_nca_picker_distance(nca_picker, same, songs_dir, random_song_file,
-                             random_song_file2):
+def test_nca_picker_distance(nca_picker, same, songs_dir, random_song_files):
+    file1 = random_song_files[0]
     if same:
-        random_song_file2 = random_song_file
+        file2 = file1
+    else:
+        file2 = random_song_files[1]
 
-    res_1 = nca_picker.distance(random_song_file, random_song_file2)
-    res_2 = nca_picker.distance(random_song_file2, random_song_file)
+    res_1 = nca_picker.distance(file1, file2)
+    res_2 = nca_picker.distance(file2, file1)
     assert res_1 == res_2
     if same:
         assert abs(res_1) <= EPSILON
