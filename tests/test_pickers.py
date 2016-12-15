@@ -5,12 +5,18 @@ from configparser import ConfigParser
 from helpers import MockingFunction, EPSILON
 import random
 from pprint import pprint
+import gc
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
 
 import dj_feet.pickers as pickers
 from dj_feet.helpers import get_all_subclasses, SongStruct
+
+
+@pytest.fixture
+def cache_dir():
+    yield '/tmp/sdaas/'
 
 
 @pytest.fixture
@@ -33,9 +39,15 @@ def simple_picker(songs_dir):
     yield pickers.SimplePicker(songs_dir)
 
 
-@pytest.fixture
-def nca_picker(songs_dir):
-    yield pickers.NCAPicker(songs_dir, cache_dir='/tmp/sdaas')
+@pytest.fixture(params=[(2, None), (4, [0.2, 0.3, 0.2, 0.3])])
+def nca_picker(request, cache_dir, songs_dir):
+    weight_amount, weights = request.param
+    yield pickers.NCAPicker(
+        songs_dir,
+        cache_dir=cache_dir,
+        weight_amount=weight_amount,
+        weights=weights)
+    gc.collect()
 
 
 @pytest.fixture(params=[{}])
@@ -65,8 +77,8 @@ def test_simple_picker_no_files_left(monkeypatch, simple_picker):
 def test_simple_picker_working_direct(monkeypatch, simple_picker, songs_dir,
                                       _):
     song_to_choose = random.choice([f for _, __, f in os.walk(songs_dir)][0])
-    mock_random_choice = MockingFunction(func=lambda: song_to_choose,
-                                         simple=True)
+    mock_random_choice = MockingFunction(
+        func=lambda: song_to_choose, simple=True)
     monkeypatch.setattr(random, 'choice', mock_random_choice)
     chosen_song = simple_picker.get_next_song({})
     assert isinstance(chosen_song, SongStruct)
@@ -116,10 +128,41 @@ def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
     monkeypatch.setattr(random, 'random', mock_random)
     next_song = nca_picker.get_next_song({})
     next_song2 = nca_picker.get_next_song({})
+    songs = [next_song.file_location]
     assert next_song == next_song2
     monkeypatch.undo()
     for _ in range(50):
         next_song2 = nca_picker.get_next_song({})
+        songs.append(next_song2.file_location)
     if next_song == next_song2:
         pprint(nca_picker.song_distances)
+    pprint(songs)
     assert next_song != next_song2
+
+
+@pytest.mark.parametrize("kwargs", [
+    {},
+    {
+        'weight_amount': 20,
+        'mfcc_amount': 20
+    }, {
+        'weight_amount': 2,
+        'weights': [0.5, 0.5]
+    }, {
+        'weight_amount': 2,
+        'weights': [0, 1]
+    }, pytest.mark.xfail({
+        'weight_amount': 2,
+        'weights': [0, 2]
+    }, raises=ValueError, strict=True), pytest.mark.xfail({
+        'weight_amount': 2,
+        'weights': [0.25, 0.25, 0.25, 0.25]
+    }, raises=ValueError, strict=True), pytest.mark.xfail({
+        'weight_amount': 20,
+        'mfcc_amount': 19
+    }, raises=ValueError, strict=True),
+])
+def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
+    monkeypatch.setattr(pickers.NCAPicker, 'calculate_songs_characteristics',
+                        lambda x, y: True)
+    pickers.NCAPicker(songs_dir, cache_dir=cache_dir, **kwargs)

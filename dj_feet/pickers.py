@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from .helpers import SongStruct
+from .helpers import SongStruct, EPSILON
 from collections import defaultdict
 import os
 import random
@@ -39,18 +39,25 @@ class NCAPicker(Picker):
                  song_folder,
                  mfcc_amount=20,
                  current_multiplier=0.5,
-                 weight_amount=20,
+                 weight_amount=4,
                  cache_dir=None,
-                 default_weights=None):
+                 weights=None):
         self.current_song = None
         self.multiplier = current_multiplier
         self.streak = 0
         self.weight_amount = weight_amount
         self.song_folder = song_folder
-        if default_weights is None:
-            self.weigts = [1 / weight_amount for _ in range(weight_amount)]
+        if weights is None:
+            self.weights = [1 / weight_amount for _ in range(weight_amount)]
         else:
-            self.weigts = default_weights
+            self.weights = weights
+        if abs(sum(self.weights) - 1) > EPSILON or len(
+                self.weights) != self.weight_amount:
+            raise ValueError(
+                "The amount of weights should be equal to `weight_amount`"
+                " and sum to 1")
+        elif mfcc_amount < weight_amount:
+            raise ValueError("You cannot have more weights than mfcc vectors")
 
         self.song_folder = song_folder
         self.cache_dir = cache_dir
@@ -107,14 +114,9 @@ class NCAPicker(Picker):
     def reset_songs(self):
         self.song_files = copy(self._song_files)
 
-    @staticmethod
-    def get_mfcc(song_file, mfcc_amount):
-        song, sr = librosa.load(song_file)
-        return librosa.feature.mfcc(song, sr, None, mfcc_amount)
-
     def get_w_matrix(self, pca):
         return numpy.array([
-            sum((elem * self.weigts[i] for i, elem in enumerate(row)))
+            sum((elem * self.weights[i] for i, elem in enumerate(row)))
             for row in pca
         ])
 
