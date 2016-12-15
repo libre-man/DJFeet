@@ -3,6 +3,10 @@ import pytest
 
 EPSILON = 0.000000001
 
+slow = pytest.mark.skipif(
+    not pytest.config.getoption("--runslow"),
+    reason="need --runslow option to run")
+
 
 class MockingFunction():
     def __init__(self, func=None, simple=False, pack=False, amount=False):
