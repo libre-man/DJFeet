@@ -186,8 +186,7 @@ def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
 @slow
 @pytest.mark.parametrize("amount", [1, 5, 20])
 def test_get_mfcc(random_song_file, amount):
-    song_file = random.choice(random_song_files)
     song, sr = librosa.load(random_song_file)
     mfcc = librosa.feature.mfcc(song, sr, None, amount)
-    same = mfcc == pickers.NCAPicker.get_mfcc(song_file, amount)
+    same = mfcc == pickers.NCAPicker.get_mfcc(random_song_file, amount)
     assert hasattr(same, '__iter__') and same.all()
