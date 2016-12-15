@@ -229,8 +229,10 @@ class NCAPicker(Picker):
         # Sort the chances by descending chance
         chances.sort(key=lambda x: x[1])
 
-        # We do a range 10 so we are almost
         next_song = chances[0]
+        # We do a range 10 so we are almost certain we find a match within the
+        # loop however we won't crash or slowdown to much if this doesn't
+        # happen.
         for _ in range(10):
             for song_file, chance in chances:
                 if random.random() < chance:
