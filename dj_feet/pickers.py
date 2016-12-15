@@ -114,6 +114,11 @@ class NCAPicker(Picker):
     def reset_songs(self):
         self.song_files = copy(self._song_files)
 
+    @staticmethod
+    def get_mfcc(song_file, mfcc_amount):
+        song, sr = librosa.load(song_file)
+        return librosa.feature.mfcc(song, sr, None, mfcc_amount)
+
     def get_w_matrix(self, pca):
         return numpy.array([
             sum((elem * self.weights[i] for i, elem in enumerate(row)))

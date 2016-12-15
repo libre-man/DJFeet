@@ -1,6 +1,7 @@
 import pytest
 import os
 import sys
+import librosa
 from configparser import ConfigParser
 from helpers import MockingFunction, EPSILON
 import random
@@ -166,3 +167,12 @@ def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
     monkeypatch.setattr(pickers.NCAPicker, 'calculate_songs_characteristics',
                         lambda x, y: True)
     pickers.NCAPicker(songs_dir, cache_dir=cache_dir, **kwargs)
+
+@pytest.mark.parametrize("amount", [1,5,20])
+def test_get_mfcc(songs_dir, amount):
+    song_file = os.path.join(songs_dir, random.choice([f for _, __, f in
+                                                       os.walk(songs_dir)][0]))
+    song, sr = librosa.load(song_file)
+    mfcc = librosa.feature.mfcc(song, sr, None, amount)
+    same = mfcc == pickers.NCAPicker.get_mfcc(song_file, amount)
+    assert hasattr(same, '__iter__') and same.all()
