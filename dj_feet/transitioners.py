@@ -150,7 +150,7 @@ class InfJukeboxTransitioner(Transitioner):
         return final_seg
 
     def write_sample(self, sample):
-        librosa.output.write_wav("tests/test_data/songs/output.wav",
+        librosa.output.write_wav(self.output,
                                  sample,
                                  SAMPLING_RATE,
                                  norm=False)
