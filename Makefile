@@ -3,12 +3,19 @@ setup:
 	pip3 install -r requirements.txt
 	python3 setup.py install
 
+clean:
+	-rm -r /tmp/sdaas
+
+test_setup:
+	-make clean
+	mkdir /tmp/sdaas
+
 test_local:
 	-mkdir /tmp/sdaas
 	pytest -v  tests
 
 test:
-	-mkdir /tmp/sdaas
+	make test_setup
 	pytest -v  tests --runslow
 
 style:
@@ -18,4 +25,5 @@ coverage_local:
 	pytest -v --cov-config=.coveragerc --cov=dj_feet tests/
 
 coverage:
-	pytest -v --cov-config=.coveragerc --cov=dj_feet --runslow tests/
+	make test_setup
+	pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/
