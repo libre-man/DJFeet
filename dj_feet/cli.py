@@ -1,7 +1,7 @@
 from .transitioners import InfJukeboxTransitioner
 from .song import Song
 def main(debug=True):
-    test()
+    pass
 
 def test():
     song1 = Song("tests/test_data/songs/song1.wav", 0)
