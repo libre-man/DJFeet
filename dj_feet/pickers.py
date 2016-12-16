@@ -138,7 +138,7 @@ class NCAPicker(Picker):
             for row in pca
         ])
 
-    def covariance(self, song_file):
+    def covariance(self, song_file):  #
         """Calculate a (approximation) of the covariance matrix using PCA and a
         cholesky decomposition."""
         cholesky, _ = self.song_properties[song_file]
@@ -205,10 +205,10 @@ class NCAPicker(Picker):
 
             max_dst = max(max_dst, dst)
 
-        # Find the max distance and normalize it to 100. This is because of
+        # Find the max distance and normalize it to 50. This is because of
         # floating point errors when doing something to the power of a very
         # large negative number
-        factor = 100 / max(max_dst, 1)
+        factor = 50 / max(max_dst, 1)
 
         # Now calculate the distance sum needed for softmax
         distance_sum = 0
