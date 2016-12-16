@@ -4,6 +4,7 @@ import sys
 import librosa
 from configparser import ConfigParser
 from helpers import MockingFunction, EPSILON, slow
+from itertools import product
 import random
 from pprint import pprint
 import gc
@@ -40,12 +41,14 @@ def simple_picker(songs_dir):
     yield pickers.SimplePicker(songs_dir)
 
 
-@pytest.fixture(params=[(2, None), (4, [0.2, 0.3, 0.2, 0.3])])
+@pytest.fixture(params=product([True, False]
+                               if pytest.config.getoption("--runslow") else
+                               [True], [(2, None), (4, [0.2, 0.3, 0.2, 0.3])]))
 def nca_picker(request, cache_dir, songs_dir):
-    weight_amount, weights = request.param
+    cache, (weight_amount, weights) = request.param
     yield pickers.NCAPicker(
         songs_dir,
-        cache_dir=cache_dir,
+        cache_dir=cache_dir if cache else None,
         weight_amount=weight_amount,
         weights=weights)
     gc.collect()
@@ -173,18 +176,27 @@ def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
             'weight_amount': 2,
             'weights': [0, 1]
         },
-        pytest.mark.xfail({
-            'weight_amount': 2,
-            'weights': [0, 2]
-        }, raises=ValueError, strict=True),
-        pytest.mark.xfail({
-            'weight_amount': 2,
-            'weights': [0.25, 0.25, 0.25, 0.25]
-        }, raises=ValueError, strict=True),
-        pytest.mark.xfail({
-            'weight_amount': 20,
-            'mfcc_amount': 19
-        }, raises=ValueError, strict=True),
+        pytest.mark.xfail(
+            {
+                'weight_amount': 2,
+                'weights': [0, 2]
+            },
+            raises=ValueError,
+            strict=True),
+        pytest.mark.xfail(
+            {
+                'weight_amount': 2,
+                'weights': [0.25, 0.25, 0.25, 0.25]
+            },
+            raises=ValueError,
+            strict=True),
+        pytest.mark.xfail(
+            {
+                'weight_amount': 20,
+                'mfcc_amount': 19
+            },
+            raises=ValueError,
+            strict=True),
     ])
 def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
     monkeypatch.setattr(pickers.NCAPicker, 'calculate_songs_characteristics',
