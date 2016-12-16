@@ -22,7 +22,7 @@ style:
 	find dj_feet tests -name \[a-zA-Z_]*.py -exec pep8 --ignore=E402 {} +
 
 coverage_local:
-	pytest -v --cov-config=.coveragerc --cov=dj_feet tests/
+	pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet tests/
 
 coverage:
 	make test_setup
