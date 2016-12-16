@@ -25,6 +25,7 @@ def no_process_data():
     yield
     dj_feet.song.Song.set_process_data = old
 
+
 @pytest.fixture
 def cache_dir():
     yield '/tmp/sdaas/'

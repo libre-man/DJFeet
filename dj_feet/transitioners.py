@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import librosa
 from pydub import AudioSegment
-#from .helpers import SongStruct
 from .song import Song
 from tempfile import NamedTemporaryFile
 import numpy as np

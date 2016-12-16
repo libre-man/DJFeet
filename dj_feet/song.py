@@ -6,11 +6,11 @@ class Song:
     def __init__(self, file_location):
         self.file_location = file_location
         self.curr_time = 0
-        self.time_series = self.sampling_rate = self.tempo = self.beat_track = None
+        self.time_series = self.sampling_rate = None
+        self.tempo = self.beat_track = None
         self.set_process_data()
 
     def set_process_data(self):
-        print(5)
         # Load the sample from the given location
         self.time_series, self.sampling_rate = librosa.load(self.file_location)
         # Get the beat track and BPM
