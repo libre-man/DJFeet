@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from .helpers import SongStruct, EPSILON
+from .helpers import EPSILON
+from .song import Song
 from collections import defaultdict
 import os
 import random
@@ -16,24 +17,26 @@ class Picker:
         pass
 
     def get_next_song(self, user_feedback):
-        """Return a SongStruct for the next song that should be used"""
+        """Return a Song for the next song that should be used"""
         raise NotImplementedError("This should be overridden")
 
 
 class SimplePicker(Picker):
     def __init__(self, song_folder):
         super(SimplePicker, self).__init__()
-        self.song_folder = song_folder
-        self.song_files = [f for _, __, f in os.walk(song_folder)][0]
+        self.song_files = [
+            os.path.join(song_folder, f) for f in os.listdir(song_folder)
+            if os.path.isfile(os.path.join(song_folder, f))
+        ]
 
     def get_next_song(self, user_feedback):
         next_song = ""
-        while not os.path.isfile(os.path.join(self.song_folder, next_song)):
+        while not os.path.isfile(next_song):
             if not self.song_files:
                 raise ValueError("There are no songs left")
             next_song = random.choice(self.song_files)
             self.song_files.remove(next_song)
-        return SongStruct(next_song, 0, None)
+        return Song(next_song)
 
 
 class NCAPicker(Picker):
@@ -186,7 +189,7 @@ class NCAPicker(Picker):
             self.streak = 0
 
         self.current_song = next_song
-        return SongStruct(next_song, 0, None)
+        return Song(next_song)
 
     def _find_next_song(self):
         """Find the next song by getting the distance between the current and
