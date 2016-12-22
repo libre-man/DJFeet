@@ -19,7 +19,10 @@ test_app:
     paths:
       - test_data/songs
   script:
-    - wget https://attach.libremail.nl/songs.tar.gz
-    - tar xfvz songs.tar.gz
-    - mv songs/ tests/test_data/
+    - | # Download if needed
+      if ! [[ -d test/test_data/songs ]];
+          then wget https://attach.libremail.nl/songs.tar.gz
+          tar xfvz songs.tar.gz
+          mv songs/ tests/test_data/
+      fi
     - make coverage
