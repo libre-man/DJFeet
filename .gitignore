@@ -91,3 +91,5 @@ ENV/
 
 .coverage
 .#*.py
+
+test_data/songs
