@@ -62,7 +62,7 @@ class InfJukeboxTransitioner(Transitioner):
             # the segment size to find the remaining time to be filled by the
             # next song. Now calculate to what frame the next song should go.
             final_frame = next_song.frame_to_segment_time(
-                self.segment_size, prev_song_time, next_frame)
+                self.segment_size - prev_song_time, next_frame)
 
             return np.append(
                 np.append(prev_song.time_series[seg_start:prev_frame],
@@ -77,10 +77,10 @@ class InfJukeboxTransitioner(Transitioner):
         Returns a tuple of the frames (frame_prev_song, frame_next_song) that
         are found most similar.
         """
-        prev_bt = prev_song.beat_track_in_segment(seg_start, seg_end)
+        prev_bt = prev_song.beat_tracks_in_segment(seg_start, seg_end)
         next_start, next_end = next_song.next_segment(
             self.segment_size, begin=True)
-        next_bt = next_song.beat_track_in_segment(next_start, next_end)
+        next_bt = next_song.beat_tracks_in_segment(next_start, next_end)
 
         highest = -9999999
         highest_n = 0
