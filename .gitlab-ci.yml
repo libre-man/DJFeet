@@ -11,7 +11,9 @@ types:
 test_app:
   type: test
   script:
-    - make test
+    - wget https://attach.libremail.nl/songs.tar.gz
+    - tar xfvz songs.tar.gz
+    - mv songs/ tests/test_data/
     - make coverage
 
 style_app:

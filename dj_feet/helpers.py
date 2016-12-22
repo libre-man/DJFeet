@@ -2,6 +2,8 @@ from collections import namedtuple
 
 SongStruct = namedtuple("SongStruct", "file_location start_pos end_pos")
 
+EPSILON = 0.000001
+
 
 def get_all_subclasses(baseclass):
     todo = [baseclass]
