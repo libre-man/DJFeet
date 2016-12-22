@@ -50,6 +50,7 @@ class NCAPicker(Picker):
         super(NCAPicker, self).__init__()
 
         if weights is None:
+            # TODO: Do this clever with pca
             self.weights = [1 / weight_amount for _ in range(weight_amount)]
         else:
             self.weights = weights
@@ -134,7 +135,7 @@ class NCAPicker(Picker):
         song, sr = librosa.load(song_file)
         return librosa.feature.mfcc(song, sr, None, mfcc_amount)
 
-    def get_w_matrix(self, pca):
+    def get_w_vector(self, pca):
         """Get a weighted pca matrix"""
         return numpy.array([
             sum((elem * self.weights[i] for i, elem in enumerate(row)))
@@ -145,7 +146,7 @@ class NCAPicker(Picker):
         """Calculate a (approximation) of the covariance matrix using PCA and a
         cholesky decomposition."""
         cholesky, _ = self.song_properties[song_file]
-        d = numpy.dot(numpy.diag(self.get_w_matrix(self.pca)), cholesky)
+        d = numpy.dot(numpy.diag(self.get_w_vector(self.pca)), cholesky)
         return numpy.dot(d, d.T)
 
     def distance(self, song_q, song_p):
@@ -197,6 +198,7 @@ class NCAPicker(Picker):
         by chance. Based on this paper:
         http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
         """
+        # TODO: discard songs with a wrong tempo!
         max_dst = 0
         for song_file in self.all_but_current_song():
             # calc distance between song_file and current_song
@@ -239,6 +241,7 @@ class NCAPicker(Picker):
         for _ in range(10):
             for song_file, chance in chances:
                 if random.random() < chance:
+                    # TODO square this
                     next_song = song_file
                     break
         return next_song
