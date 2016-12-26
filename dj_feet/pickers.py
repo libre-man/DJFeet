@@ -246,14 +246,22 @@ class NCAPicker(Picker):
         # Sort the chances by descending chance
         chances.sort(key=lambda x: x[1])
 
-        next_song = chances[0]
+        # Square the chances and then normalize them again. This has the
+        # advantage of giving relative high chances, so similar songs, a
+        # relative higher chance will still remaining a vector sum of 1.
+        for i in range(chances):
+            chances[i] = chances[i] ** 2
+        chance_sum = sum(chances)
+        for i in range(chances):
+            chances[i] = chances[i] / chance_sum
+
         # We do a range 10 so we are almost certain we find a match within the
         # loop however we won't crash or slowdown to much if this doesn't
         # happen.
+        next_song = chances[0]
         for _ in range(10):
             for song_file, chance in chances:
                 if random.random() < chance:
-                    # TODO square this
                     next_song = song_file
                     break
         return next_song
