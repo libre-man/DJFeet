@@ -103,7 +103,10 @@ class NCAPicker(Picker):
             mfccs[song_file] = mfcc
             average += mfcc.mean(1)
 
-        # TODO: use the songs lenghts as weights
+        # NOTE: We don't use the length of the songs as weights. Because we
+        # prefer to weigh each song equally. This is also influenced by the
+        # fact that we don't know how long each song will be played so using
+        # the entire length doesn't really make any sense.
         average = average / len(self.song_files)
         average_covariance = numpy.array(
             [numpy.zeros(mfcc_amount) for _ in range(mfcc_amount)])
