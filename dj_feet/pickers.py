@@ -50,8 +50,9 @@ class NCAPicker(Picker):
         super(NCAPicker, self).__init__()
 
         if weights is None:
-            # TODO: Do this clever with pca
-            self.weights = [1 / weight_amount for _ in range(weight_amount)]
+            # Weights will be set in calculate_song_characteristics if
+            # self.weights are None.
+            self.weights = None
         else:
             self.weights = weights
 
@@ -71,8 +72,9 @@ class NCAPicker(Picker):
         ]
         self.song_files = copy(self._song_files)
 
-        self.pca, self.song_properties = self.calculate_songs_characteristics(
-            mfcc_amount, cache_dir)
+        characteristics = self.calculate_songs_characteristics(mfcc_amount,
+                                                               cache_dir)
+        self.pca, self.song_properties, self.weights = characteristics
 
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
         self.current_song = None
@@ -125,7 +127,14 @@ class NCAPicker(Picker):
         pca = PCA(len(self.weights))
         pca.fit(average_covariance.T)
 
-        return pca.components_.T, song_properties
+        # Initialize the weights to the explained variance ratio if the weights
+        # are not yet set.
+        if self.weights is None:
+            weights = pca.explained_variance_ratio_
+        else:
+            weights = self.weights
+
+        return pca.components_.T, song_properties, weights
 
     def reset_songs(self):
         """Restart with the full amount of songs. This does not alter the
