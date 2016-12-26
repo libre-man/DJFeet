@@ -185,7 +185,7 @@ def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
     ])
 def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
     monkeypatch.setattr(pickers.NCAPicker, 'calculate_songs_characteristics',
-                        lambda x, y, z: (True, True))
+                        lambda x, y, z: (True, True, False))
     pickers.NCAPicker(songs_dir, cache_dir=cache_dir, **kwargs)
 
 

@@ -9,7 +9,6 @@ import librosa
 import numpy
 from sklearn.decomposition import PCA
 from copy import copy
-from pprint import pprint
 
 
 class Picker:
@@ -49,19 +48,18 @@ class NCAPicker(Picker):
                  weights=None):
         super(NCAPicker, self).__init__()
 
-        if weights is None:
-            # Weights will be set in calculate_song_characteristics if
-            # self.weights are None.
-            self.weights = None
-        else:
-            self.weights = weights
+        self.weight_amount = weight_amount
+        # Weights will be set in calculate_song_characteristics if
+        # self.weights are None.
+        self.weights = weights
+        if weights is not None:
+            if abs(sum(self.weights) - 1) > EPSILON or len(
+                    self.weights) != weight_amount:
+                raise ValueError(
+                    "The amount of weights should be equal to `weight_amount`"
+                    " and sum to 1")
 
-        if abs(sum(self.weights) - 1) > EPSILON or len(
-                self.weights) != weight_amount:
-            raise ValueError(
-                "The amount of weights should be equal to `weight_amount`"
-                " and sum to 1")
-        elif mfcc_amount < weight_amount:
+        if mfcc_amount < weight_amount:
             raise ValueError("You cannot have more weights than mfcc vectors")
 
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
@@ -93,7 +91,6 @@ class NCAPicker(Picker):
         # Calculate the average 20D feature vector for the mfccs
         for song_file in self.song_files:
             filename, _ = os.path.splitext(os.path.basename(song_file))
-            print(filename)
             if cache_dir and os.path.isfile(
                     os.path.join(cache_dir, filename) + os.extsep + 'npy'):
                 mfcc = numpy.load(
@@ -124,7 +121,7 @@ class NCAPicker(Picker):
 
         # Do PCA on the average covariance matrix
         average_covariance = average_covariance / len(self.song_files)
-        pca = PCA(len(self.weights))
+        pca = PCA(self.weight_amount)
         pca.fit(average_covariance.T)
 
         # Initialize the weights to the explained variance ratio if the weights
@@ -236,24 +233,25 @@ class NCAPicker(Picker):
         chances = []
         for song_file in self.song_files:
             # Append the softmax chances to the chances list
-            if song_file == self.current_song:
-                chance = 1 / (1 + self.streak * self.multiplier)
-            else:
+            if song_file != self.current_song:
                 dst = self.song_distances[self.current_song][song_file]
                 chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
-            chances.append((song_file, chance))
-
-        # Sort the chances by descending chance
-        chances.sort(key=lambda x: x[1])
+                chances.append((song_file, chance))
 
         # Square the chances and then normalize them again. This has the
         # advantage of giving relative high chances, so similar songs, a
         # relative higher chance will still remaining a vector sum of 1.
-        for i in range(chances):
-            chances[i] = chances[i] ** 2
-        chance_sum = sum(chances)
-        for i in range(chances):
-            chances[i] = chances[i] / chance_sum
+        for i in range(len(chances)):
+            chances[i] = (chances[i][0], chances[i][1]**2)
+        chance_sum = sum((x[1] for x in chances))
+        for i in range(len(chances)):
+            chances[i] = (chances[i][0], chances[i][1] / chance_sum)
+
+        chances.append(
+            (self.current_song, 1 / (1 + self.streak * self.multiplier)))
+
+        # Sort the chances by descending chance
+        chances.sort(key=lambda x: x[1])
 
         # We do a range 10 so we are almost certain we find a match within the
         # loop however we won't crash or slowdown to much if this doesn't
