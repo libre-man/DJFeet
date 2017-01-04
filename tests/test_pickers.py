@@ -51,11 +51,14 @@ def simple_picker(songs_dir):
                                [True], [(2, None), (4, [0.2, 0.3, 0.2, 0.3])]))
 def nca_picker(request, cache_dir, songs_dir):
     cache, (weight_amount, weights) = request.param
-    yield pickers.NCAPicker(
+    picker = pickers.NCAPicker(
         songs_dir,
         cache_dir=cache_dir if cache else None,
         weight_amount=weight_amount,
         weights=weights)
+    assert weights is None or len(picker.weights) == len(weights)
+    yield picker
+    assert weights is None or len(picker.weights) == len(weights)
     gc.collect()
 
 
@@ -73,7 +76,7 @@ def test_base_picker(picker_base, user_feedback):
 def test_all_pickers(all_pickers):
     assert issubclass(all_pickers, pickers.Picker)
     assert callable(all_pickers.get_next_song)
-    assert all_pickers.get_next_song.__code__.co_argcount == 2
+    assert all_pickers.get_next_song.__code__.co_argcount == 3
 
 
 def test_simple_picker_no_files_left(monkeypatch, simple_picker):
@@ -127,8 +130,41 @@ def test_nca_picker_distance(nca_picker, same, songs_dir, random_song_files):
 
 
 def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
+    real_rand = random.random
+    def feedback_test(feedback):
+        options = {
+            "1453492_Regina_Original_Mix.wav": 0.8,
+            "1665536_Hear_Me_Out_Original_Mix.wav": 0.3,
+            "2064084_New_Day_Original_Mix.wav": 0.7,
+            "2739576_Hunger_Original_Mix.wav": 0.1,
+            "1313776_Slazenger_Joseph_Capriati_Remix.wav": 0.1,
+            "1588390_Where_2D_Meets_3D_Chris_Liebing_Remix.wav": 0.1,
+            "1928097_Egoist_Original_Mix.wav": 0.1,
+            "22538_Panikattack_Original_Mix.wav": 0.1,
+            "3030059_Neve___Me_Original_Mix.wav": 0.1,
+        }
+        needle = False
+        if feedback['old'].find("Bubbler") > 0:
+            needle = feedback['new']
+        if feedback['new'].find("Bubbler") > 0:
+            needle = feedback['old']
+        if needle:
+            for key, value in options.items():
+                if key.find(needle) > 0:
+                    return value
+
+        return real_rand()
+
     mock_random = MockingFunction(func=lambda: 0.99999999999, simple=True)
     monkeypatch.setattr(random, 'random', mock_random)
+    real_rand()
+    assert not mock_random.called
+
+    mock_feedback = MockingFunction(func=feedback_test)
+    nca_picker.get_feedback = mock_feedback
+
+    streak = 0
+
     next_song = nca_picker.get_next_song({})
     next_song2 = nca_picker.get_next_song({})
     assert isinstance(next_song2, dj_feet.song.Song)
@@ -136,13 +172,19 @@ def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
     assert next_song.file_location == next_song2.file_location
     monkeypatch.undo()
     for _ in range(50):
-        next_song2 = nca_picker.get_next_song({})
+        next_song2_new = nca_picker.get_next_song({}, force=streak > 3)
+        if next_song2.file_location == next_song2_new.file_location:
+            streak += 1
+        else:
+            streak = 0
+        next_song2 = next_song2_new
         songs.append(next_song2.file_location)
         assert next_song2 is not None
         assert isinstance(next_song2, dj_feet.song.Song)
     if next_song == next_song2:
         pprint(nca_picker.song_distances)
     pprint(songs)
+    assert mock_feedback.called
     assert len(songs) == 51
 
 
