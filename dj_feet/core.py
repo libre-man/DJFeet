@@ -10,8 +10,13 @@ def loop(controller, picker, transitioner, communicator):
     old_sample = picker.get_next_song(None)
     transitioner.write(transitioner.merge(None, old_sample))
     while controller.should_continue():
-        new_sample = picker.get_next_song(communicator.get_user_feedback())
-        transitioner.write(transitioner.merge(old_sample, new_sample))
+        while True:
+            new_sample = picker.get_next_song(communicator.get_user_feedback())
+            try:
+                transitioner.write(transitioner.merge(old_sample, new_sample))
+                break
+            except ValueError:
+                continue
         sleep_time = controller.waittime(new_sample)
         if sleep_time < 0:
             print('Sleep time is negative, not enough samples!',

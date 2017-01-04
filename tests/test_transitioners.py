@@ -88,3 +88,11 @@ def test_merge_sample(inf_jukebox_transitioner, random_song_files,
         song2 = Song(random_song_files[1])
     inf_jukebox_transitioner.merge(song1, song2)
     assert mocking_append.called != same
+
+def test_time_exceeded_exception(inf_jukebox_transitioner, random_song_file):
+    song = Song(random_song_file)
+    song_length = int(len(song.time_series) / song.sampling_rate)
+    inf_jukebox_transitioner.segment_size = song_length - 10
+    inf_jukebox_transitioner.merge(song, song)
+    with pytest.raises(ValueError):
+        inf_jukebox_transitioner.merge(song, song)
