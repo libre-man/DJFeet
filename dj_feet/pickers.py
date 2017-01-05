@@ -114,8 +114,8 @@ class NCAPicker(Picker):
                         os.path.join(cache_dir, filename + "_mfcc"), mfcc)
                     numpy.save(
                         os.path.join(cache_dir, filename + "_tempo"), tempo)
-                    with open(os.path.join(cache_dir, filename + "_done"),
-                              "w+"):
+                    with open(
+                            os.path.join(cache_dir, filename + "_done"), "w+"):
                         pass
             mfccs[song_file] = mfcc
             tempos[song_file] = tempo
@@ -298,8 +298,8 @@ class NCAPicker(Picker):
         if base_song is None:
             base_song = self.current_song
         _, _unused, base_tempo = self.song_properties[base_song]
+        tempo_factor = self.max_tempo_percent / 100
         for song_file in self.song_files:
             _, _unused, other_tempo = self.song_properties[song_file]
-            if (self.max_tempo_percent / 100
-                ) * other_tempo > abs(base_tempo - other_tempo):
+            if tempo_factor * other_tempo > abs(base_tempo - other_tempo):
                 yield song_file
