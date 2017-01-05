@@ -9,7 +9,6 @@ import librosa
 import numpy
 from sklearn.decomposition import PCA
 from copy import copy
-from pprint import pprint
 
 
 class Picker:
@@ -46,21 +45,22 @@ class NCAPicker(Picker):
                  current_multiplier=0.5,
                  weight_amount=4,
                  cache_dir=None,
-                 weights=None):
+                 weights=None,
+                 max_tempo_percent=None):
         super(NCAPicker, self).__init__()
 
-        if weights is None:
-            # TODO: Do this clever with pca
-            self.weights = [1 / weight_amount for _ in range(weight_amount)]
-        else:
-            self.weights = weights
+        self.weight_amount = weight_amount
+        # Weights will be set in calculate_song_characteristics if
+        # self.weights are None.
+        self.weights = weights
+        if weights is not None:
+            if abs(sum(self.weights) - 1) > EPSILON or len(
+                    self.weights) != weight_amount:
+                raise ValueError(
+                    "The amount of weights should be equal to `weight_amount`"
+                    " and sum to 1")
 
-        if abs(sum(self.weights) - 1) > EPSILON or len(
-                self.weights) != weight_amount:
-            raise ValueError(
-                "The amount of weights should be equal to `weight_amount`"
-                " and sum to 1")
-        elif mfcc_amount < weight_amount:
+        if mfcc_amount < weight_amount:
             raise ValueError("You cannot have more weights than mfcc vectors")
 
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
@@ -71,8 +71,13 @@ class NCAPicker(Picker):
         ]
         self.song_files = copy(self._song_files)
 
-        self.pca, self.song_properties = self.calculate_songs_characteristics(
-            mfcc_amount, cache_dir)
+        if max_tempo_percent is None:
+            max_tempo_percent = 8
+        self.max_tempo_percent = int(max_tempo_percent)
+
+        characteristics = self.calculate_songs_characteristics(mfcc_amount,
+                                                               cache_dir)
+        self.pca, self.song_properties, self.weights = characteristics
 
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
         self.current_song = None
@@ -81,29 +86,45 @@ class NCAPicker(Picker):
 
     def calculate_songs_characteristics(self, mfcc_amount, cache_dir):
         """Calculate the songs characteristics. These are returned as a tuple
-        of the PCA and dictionary for in which each song has a tuple of their
-        cholesky decomposition and the mean of their mfcc.
+        of respectively their PCA components, a dictionary for in which each
+        song has a tuple of respectively their cholesky decomposition, the
+        mean of their mfcc and their average BPM. Finally the return tuple
+        contains the current weights for calculating the covariance matrix.
         """
         mfccs = dict()
+        tempos = dict()
         average = numpy.zeros(mfcc_amount)
         song_properties = dict()
 
         # Calculate the average 20D feature vector for the mfccs
         for song_file in self.song_files:
             filename, _ = os.path.splitext(os.path.basename(song_file))
-            print(filename)
             if cache_dir and os.path.isfile(
-                    os.path.join(cache_dir, filename) + os.extsep + 'npy'):
+                    os.path.join(cache_dir, filename + "_done")):
                 mfcc = numpy.load(
-                    os.path.join(cache_dir, filename) + os.extsep + 'npy')
+                    os.path.join(cache_dir, filename + "_mfcc") + os.extsep +
+                    'npy')
+                tempo = numpy.load(
+                    os.path.join(cache_dir, filename + "_tempo") + os.extsep +
+                    'npy')
             else:
-                mfcc = self.get_mfcc(song_file, mfcc_amount)
+                mfcc, tempo = self.get_mfcc_and_tempo(song_file, mfcc_amount)
                 if cache_dir:
-                    numpy.save(os.path.join(cache_dir, filename), mfcc)
+                    numpy.save(
+                        os.path.join(cache_dir, filename + "_mfcc"), mfcc)
+                    numpy.save(
+                        os.path.join(cache_dir, filename + "_tempo"), tempo)
+                    with open(
+                            os.path.join(cache_dir, filename + "_done"), "w+"):
+                        pass
             mfccs[song_file] = mfcc
+            tempos[song_file] = tempo
             average += mfcc.mean(1)
 
-        # TODO: use the songs lenghts as weights
+        # NOTE: We don't use the length of the songs as weights. Because we
+        # prefer to weigh each song equally. This is also influenced by the
+        # fact that we don't know how long each song will be played so using
+        # the entire length doesn't really make any sense.
         average = average / len(self.song_files)
         average_covariance = numpy.array(
             [numpy.zeros(mfcc_amount) for _ in range(mfcc_amount)])
@@ -114,15 +135,23 @@ class NCAPicker(Picker):
             mfcc = (mfcc.T - average).T
             covariance = numpy.cov(mfcc)
             average_covariance += covariance
-            props = (numpy.linalg.cholesky(covariance), numpy.mean(mfcc, 1))
+            props = (numpy.linalg.cholesky(covariance), numpy.mean(mfcc, 1),
+                     tempos[song_file])
             song_properties[song_file] = props
 
         # Do PCA on the average covariance matrix
         average_covariance = average_covariance / len(self.song_files)
-        pca = PCA(len(self.weights))
+        pca = PCA(self.weight_amount)
         pca.fit(average_covariance.T)
 
-        return pca.components_.T, song_properties
+        # Initialize the weights to the explained variance ratio if the weights
+        # are not yet set.
+        if self.weights is None:
+            weights = pca.explained_variance_ratio_
+        else:
+            weights = self.weights
+
+        return pca.components_.T, song_properties, weights
 
     def reset_songs(self):
         """Restart with the full amount of songs. This does not alter the
@@ -130,10 +159,11 @@ class NCAPicker(Picker):
         self.song_files = copy(self._song_files)
 
     @staticmethod
-    def get_mfcc(song_file, mfcc_amount):
-        """Calculate the mfcc for the given song."""
+    def get_mfcc_and_tempo(song_file, mfcc_amount):
+        """Calculate the mfcc and estimated BPM for the given song file."""
         song, sr = librosa.load(song_file)
-        return librosa.feature.mfcc(song, sr, None, mfcc_amount)
+        tempo, _ = librosa.beat.beat_track(song, sr)
+        return librosa.feature.mfcc(song, sr, None, mfcc_amount), tempo
 
     def get_w_vector(self, pca):
         """Get a weighted pca matrix"""
@@ -145,7 +175,7 @@ class NCAPicker(Picker):
     def covariance(self, song_file):  #
         """Calculate a (approximation) of the covariance matrix using PCA and a
         cholesky decomposition."""
-        cholesky, _ = self.song_properties[song_file]
+        cholesky, _, _unused = self.song_properties[song_file]
         d = numpy.dot(numpy.diag(self.get_w_vector(self.pca)), cholesky)
         return numpy.dot(d, d.T)
 
@@ -198,9 +228,8 @@ class NCAPicker(Picker):
         by chance. Based on this paper:
         http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
         """
-        # TODO: discard songs with a wrong tempo!
         max_dst = 0
-        for song_file in self.all_but_current_song():
+        for song_file in self.all_but_current_song(filter_songs=True):
             # calc distance between song_file and current_song
             dst = self.song_distances[self.current_song][song_file]
             if dst is None:
@@ -217,38 +246,60 @@ class NCAPicker(Picker):
 
         # Now calculate the distance sum needed for softmax
         distance_sum = 0
-        for song_file in self.all_but_current_song():
+        for song_file in self.all_but_current_song(filter_songs=True):
             dst = self.song_distances[self.current_song][song_file]
             distance_sum += numpy.power(numpy.e, -(dst * factor))
 
         chances = []
-        for song_file in self.song_files:
+        for song_file in self.all_close_songs():
             # Append the softmax chances to the chances list
-            if song_file == self.current_song:
-                chance = 1 / (1 + self.streak * self.multiplier)
-            else:
+            if song_file != self.current_song:
                 dst = self.song_distances[self.current_song][song_file]
                 chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
-            chances.append((song_file, chance))
+                chances.append((song_file, chance))
+
+        # Square the chances and then normalize them again. This has the
+        # advantage of giving relative high chances, so similar songs, a
+        # relative higher chance will still remaining a vector sum of 1.
+        for i in range(len(chances)):
+            chances[i] = (chances[i][0], chances[i][1]**2)
+        chance_sum = sum((x[1] for x in chances))
+        for i in range(len(chances)):
+            chances[i] = (chances[i][0], chances[i][1] / chance_sum)
+
+        chances.append(
+            (self.current_song, 1 / (1 + self.streak * self.multiplier)))
 
         # Sort the chances by descending chance
         chances.sort(key=lambda x: x[1])
 
-        next_song = chances[0]
         # We do a range 10 so we are almost certain we find a match within the
         # loop however we won't crash or slowdown to much if this doesn't
         # happen.
+        next_song = chances[0][0]
         for _ in range(10):
             for song_file, chance in chances:
                 if random.random() < chance:
-                    # TODO square this
                     next_song = song_file
                     break
         return next_song
 
-    def all_but_current_song(self):
+    def all_but_current_song(self, filter_songs=True):
         """A generator that yields all but the current song of all played
         songs."""
-        for song_file in self.song_files:
+        iterator = self.all_close_songs() if filter_songs else self.song_files
+        for song_file in iterator:
             if song_file != self.current_song:
+                yield song_file
+
+    def all_close_songs(self, base_song=None):
+        """All songs filtered by their average tempo. The tempo used for
+        filtering is base_song. If this is None `self.current_song` is used."""
+        if base_song is None:
+            base_song = self.current_song
+        _, _unused, base_tempo = self.song_properties[base_song]
+        tempo_factor = self.max_tempo_percent / 100
+        for song_file in self.song_files:
+            _, _unused, other_tempo = self.song_properties[song_file]
+            if tempo_factor * other_tempo > abs(base_tempo - other_tempo):
                 yield song_file
