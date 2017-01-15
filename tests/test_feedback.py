@@ -1,43 +1,31 @@
-import pytest
 import os
 import sys
-from configparser import ConfigParser
-from helpers import MockingFunction
+from types import FunctionType
+from numbers import Number
+from helpers import EPSILON
+import pytest
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
 
-import dj_feet.communicators as communicators
+import dj_feet.feedback as f
 
 
-@pytest.fixture
-def communicator_base():
-    yield communicators.Communicator()
-
-
-@pytest.fixture
-def simple_communicator():
-    yield communicators.SimpleCommunicator()
-
-
-@pytest.fixture(params=[communicators.SimpleCommunicator])
-def all_communicators(request):
-    yield request.param
-
-
-def test_base_communicator(communicator_base):
-    assert isinstance(communicator_base, communicators.Communicator)
-    with pytest.raises(NotImplementedError):
-        communicator_base.get_user_feedback()
-
-
-def test_all_communicators(all_communicators):
-    assert issubclass(all_communicators, communicators.Communicator)
-    assert callable(all_communicators.get_user_feedback)
-    assert all_communicators.get_user_feedback.__code__.co_argcount == 1
-
-
-def test_simple_communicator(simple_communicator):
-    res = simple_communicator.get_user_feedback()
-    assert isinstance(res, dict)
-    assert not res
+@pytest.mark.parametrize("feedback,expected",
+                         [({0: 0}, 1),
+                          ({0: 1}, 0),
+                          ({0: 1, 1: None}, 1 / 2),
+                          ({0: 1, 1: 2, 2: None}, lambda x: x > 1 / 3),
+                          ({0: 1, 1: 1, 2: None}, 1 / 3),
+                          (5, AttributeError),
+                          ({0: '1'}, TypeError)])
+def test_feedback_percentage_liked(feedback, expected):
+    if isinstance(expected, Number) or isinstance(expected, FunctionType):
+        got = f.feedback_percentage_liked({'feedback': feedback})
+        if callable(expected):
+            assert expected(got)
+        else:
+            assert abs(got - expected) < EPSILON
+    else:
+        with pytest.raises(expected):
+            got = f.feedback_percentage_liked({'feedback': feedback})

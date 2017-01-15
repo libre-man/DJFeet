@@ -14,8 +14,12 @@ def feedback_percentage_liked(controller_dict):
         # merge as they did not react to this merge in our opinion.
         if time is None:
             total += 1
-        if time is not None and time > 1:
-            channel_switches += 1 / (time + (1 / 9)) + 0.1
+        if time is not None and time >= 1:
+            channel_switches += 1 / (float(time) + (1 / 9)) + 0.1
             total += 1
+
+    # If nobody is on the channel we simply think we are doing awesome.
+    if total == 0:
+        return 1
 
     return (total - channel_switches) / total
