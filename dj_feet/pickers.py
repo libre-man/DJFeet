@@ -119,12 +119,10 @@ class NCAPicker(Picker):
             else:
                 mfcc, tempo = self.get_mfcc_and_tempo(song_file, mfcc_amount)
                 if cache_dir:
-                    numpy.save(
-                        os.path.join(cache_dir, filename + "_mfcc"), mfcc)
-                    numpy.save(
-                        os.path.join(cache_dir, filename + "_tempo"), tempo)
-                    with open(
-                            os.path.join(cache_dir, filename + "_done"), "w+"):
+                    cache_file = os.path.join(cache_dir, filename)
+                    numpy.save(cache_file + "_mfcc", mfcc)
+                    numpy.save(cache_file + "_tempo", tempo)
+                    with open(cache_file + "_tempo", "w+"):
                         pass
             mfccs[song_file] = mfcc
             tempos[song_file] = tempo
