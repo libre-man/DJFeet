@@ -87,7 +87,9 @@ def test_merge_sample(inf_jukebox_transitioner, random_song_files, monkeypatch,
         song2 = song1
     else:
         song2 = Song(random_song_files[1])
-    inf_jukebox_transitioner.merge(song1, song2)
+    _, time_delta = inf_jukebox_transitioner.merge(song1, song2)
+    assert (time_delta.seconds == inf_jukebox_transitioner.segment_size
+            ) == same
     assert mocking_append.called != same
 
 
