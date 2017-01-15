@@ -24,9 +24,10 @@ def transitioner_base():
     yield transitioners.Transitioner()
 
 
-@pytest.fixture(params=[10, 30])
+@pytest.fixture(params=[10, 29])
 def inf_jukebox_transitioner(request, song_output_file):
-    yield transitioners.InfJukeboxTransitioner(song_output_file, request.param)
+    yield transitioners.InfJukeboxTransitioner(
+        song_output_file, segment_size=request.param)
 
 
 @pytest.fixture(params=[transitioners.InfJukeboxTransitioner])
@@ -90,3 +91,12 @@ def test_merge_sample(inf_jukebox_transitioner, random_song_files, monkeypatch,
     assert (time_delta.seconds == inf_jukebox_transitioner.segment_size
             ) == same
     assert mocking_append.called != same
+
+
+def test_time_exceeded_exception(inf_jukebox_transitioner, random_song_file):
+    song = Song(random_song_file)
+    song_length = int(len(song.time_series) / song.sampling_rate)
+    inf_jukebox_transitioner.segment_size = song_length - 10
+    inf_jukebox_transitioner.merge(song, song)
+    with pytest.raises(ValueError):
+        inf_jukebox_transitioner.merge(song, song)

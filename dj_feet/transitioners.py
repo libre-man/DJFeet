@@ -41,6 +41,10 @@ class InfJukeboxTransitioner(Transitioner):
         Note: next_song can be the same as prev_song, the next segment of this
               song is returned in this case.
         """
+        # Check whether the previous song still has segment size of time left
+        if not prev_song.segment_size_left(self.segment_size):
+            raise ValueError("Song time exceeded")
+
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
         seg_start, seg_end = prev_song.next_segment(self.segment_size)
@@ -73,6 +77,7 @@ class InfJukeboxTransitioner(Transitioner):
             final_frame = next_song.frame_to_segment_time(
                 self.segment_size - prev_song_time, next_frame)
 
+            # TODO: No errors with mixing frames / segments?
             return np.append(
                 np.append(prev_song.time_series[seg_start:prev_frame],
                           transition), next_song.time_series[
@@ -101,9 +106,11 @@ class InfJukeboxTransitioner(Transitioner):
                     prev_song.time_series[prev_bt[p]:prev_bt[p + 1]],
                     next_song.time_series[next_bt[n]:next_bt[n + 1]],
                     mode="valid")
-                # TODO: Optimize the way to interpret the cross correlation!!
-                if corr[0] >= highest:
-                    highest = corr[0]
+                # Check whether the average of the array is higher than the
+                # highest previous found beat.
+                average = np.average(corr)
+                if average >= highest:
+                    highest = average
                     highest_n = n
                     highest_p = p
         print(highest_p, highest_n)
@@ -125,9 +132,9 @@ class InfJukeboxTransitioner(Transitioner):
 
         for n in range(len(next_seg)):
             if n > len(prev_seg) - 1:
-                final_seg.append(next_seg[n] * (prev_delta * n))
+                final_seg.append(next_seg[n] * (next_delta * n))
             else:
-                final_seg[n] += next_seg[n] * (prev_delta * n)
+                final_seg[n] += next_seg[n] * (next_delta * n)
 
         return final_seg
 
