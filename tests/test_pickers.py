@@ -129,8 +129,46 @@ def test_nca_picker_distance(nca_picker, same, songs_dir, random_song_files):
         assert abs(res_1) > EPSILON
 
 
+def text_nca_picker_feedback(nca_picker, monkeypatch, songs_dir):
+    def my_get_userfeedback(feedback):
+        assert feedback['old'] == feedback['good_old']
+        assert feedback['new'] == feedback['good_new']
+        assert feedback['old'].file_location != feedback['old'].file_location
+        return feedback['number']
+
+    mocked__optimize_weights = MockingFunction()
+    mocked_get_userfeedback = MockingFunction(func=my_get_userfeedback)
+    songs = []
+
+    monkeypatch.setattr(nca_picker, 'get_userfeedback',
+                        mocked_get_userfeedback)
+    monkeypatch.setattr(nca_picker, '_optimize_weights',
+                        mocked__optimize_weights)
+
+    songs.append(nca_picker.get_next_song(None))
+    songs.append(nca_picker.get_next_song(None))
+    songs.append(nca_picker.get_next_song(None))
+
+    # Here (4th time) the core will start sending feedback. However this uses a
+    # non existing Seg-1 so it should not be used. See docs/timing.dt for more
+    # information.
+    songs.append(nca_picker.get_next_song(None))
+
+    for i in range(10):
+        songs.append(
+            nca_picker.get_next_song({
+                'good_old': songs[-5],
+                'good_new': songs[-4],
+                'number': i,
+            }))
+
+    assert mocked_get_userfeedback.called
+    assert mocked__optimize_weights.called
+
+
 def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
     real_rand = random.random
+
     def feedback_test(feedback):
         options = {
             "1453492_Regina_Original_Mix.wav": 0.8,

@@ -219,15 +219,14 @@ class NCAPicker(Picker):
         # songs. So reset all the available songs.
         if len(self.song_files) == 1:
             self.reset_songs()
-        if len(self.picked_songs) >= 4 and self.picked_songs[
-                -4] != self.picked_songs[-3]:
-            old = self.picked_songs[-4]
-            new = self.picked_songs[-3]
-            user_feedback.update({"old": old, "new": new})
-            self.done_transitions.append(
-                (self.picked_songs[-4], self.picked_songs[-3],
-                 self.get_feedback(user_feedback)))
-            self._optimize_weights()
+        if len(self.picked_songs) == 5:
+            old = self.picked_songs.pop(0)
+            if old != self.picked_songs[-4]:
+                new = self.picked_songs[-4]
+                user_feedback.update({"old": old, "new": new})
+                self.done_transitions.append(
+                    (old, new, self.get_feedback(user_feedback)))
+                self._optimize_weights()
 
         if self.current_song is None:  # First pick, simply select random
             next_song = random.choice(self.all_but_current_song()
@@ -374,6 +373,6 @@ class NCAPicker(Picker):
         _, _unused, base_tempo = self.song_properties[base_song]
         for song_file in self.song_files:
             _, _unused, other_tempo = self.song_properties[song_file]
-            if (self.max_tempo_percent / 100
-                ) * other_tempo > abs(base_tempo - other_tempo):
+            tempo_offset = abs(base_tempo - other_tempo)
+            if (self.max_tempo_percent / 100) * other_tempo > tempo_offset:
                 yield song_file
