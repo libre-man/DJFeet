@@ -4,18 +4,40 @@ import time
 
 
 def loop(controller, picker, transitioner, communicator):
-    if not controller.should_continue():
-        return
+    merge_times = []
     new_sample = None
-    old_sample = picker.get_next_song(None)
-    transitioner.write(transitioner.merge(None, old_sample))
+    old_sample = None
+    segment_size = None
+    i = 0  # The part we are generating
+
     while controller.should_continue():
-        new_sample = picker.get_next_song(communicator.get_user_feedback())
-        transitioner.write(transitioner.merge(old_sample, new_sample))
+        if len(merge_times) == 4:
+            start, end = merge_times.pop(0)
+            feedback = communicator.get_user_feedback(start, end)
+        else:
+            feedback = {}
+
+        new_sample = picker.get_next_song(feedback)
+        result, merge_offset = transitioner.merge(old_sample, new_sample)
+
+        if merge_times:
+            # First update the previous segment with an ending time
+            merge_times[-1].append(segment_size * i + merge_offset)
+
+            # Now insert the starting time of the new segment
+            merge_times.append([merge_offset])
+        else:
+            merge_times.append([0])
+            segment_size = merge_offset
+
+        transitioner.write(result)
+
         sleep_time = controller.waittime(new_sample)
         if sleep_time < 0:
-            print('Sleep time is negative, not enough samples!',
-                  file=sys.stderr)
+            print(
+                'Sleep time is negative, not enough samples!', file=sys.stderr)
         else:
             time.sleep(sleep_time)
+
         old_sample = new_sample
+        i += 1

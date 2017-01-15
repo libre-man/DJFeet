@@ -77,8 +77,8 @@ def test_write_sample(inf_jukebox_transitioner, _, random_song_file,
 
 
 @pytest.mark.parametrize('same', [True, False])
-def test_merge_sample(inf_jukebox_transitioner, random_song_files,
-                      monkeypatch, same):
+def test_merge_sample(inf_jukebox_transitioner, random_song_files, monkeypatch,
+                      same):
     mocking_append = MockingFunction(func=numpy.append)
     monkeypatch.setattr(numpy, 'append', mocking_append)
     song1 = Song(random_song_files[0])
@@ -86,5 +86,7 @@ def test_merge_sample(inf_jukebox_transitioner, random_song_files,
         song2 = song1
     else:
         song2 = Song(random_song_files[1])
-    inf_jukebox_transitioner.merge(song1, song2)
+    _, time_delta = inf_jukebox_transitioner.merge(song1, song2)
+    assert (time_delta.seconds == inf_jukebox_transitioner.segment_size
+            ) == same
     assert mocking_append.called != same
