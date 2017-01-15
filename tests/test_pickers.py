@@ -274,6 +274,7 @@ def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
 def test_get_mfcc(random_song_file, amount):
     song, sr = librosa.load(random_song_file)
     mfcc = librosa.feature.mfcc(song, sr, None, amount)
-    same, _ = mfcc == pickers.NCAPicker.get_mfcc_and_tempo(random_song_file,
-                                                           amount)
+    mfcc_res, _ = pickers.NCAPicker.get_mfcc_and_tempo(random_song_file,
+                                                       amount)
+    same = mfcc_res == mfcc
     assert hasattr(same, '__iter__') and same.all()
