@@ -19,15 +19,16 @@ note over c, s
 end note
 
 opt Add Music
-    u->+s: POST: /add_music, {'file_date : file}
+    u->+s: Add music file in control panel
+    s->u: Update music overview to pending
     s->+c: POST: /add_music, {'file_location' : string}
     c->-s: done
-    s->-u: Update overview
+    s->-u: Update music overview
 end
 
 opt Delete Music
-    u->+s: POST: /delete_music, {'file' : string}
-    s->-u: Update overview
+    u->+s: Delete music file from control panel
+    s->-u: Update music overview
     s->c: POST: /delete_music, {'file_location' : string}
     note left of c
         file_location should be the same as in
@@ -36,9 +37,9 @@ opt Delete Music
 end
 
 opt Feedback Handling
-    u->s: POST: /put_feedback, feedback
+    u->s: POST: /log_data, feedback
     c->+s: GET: /get_feedback?start=$start&end=$end&id=$id
-    u->s: POST: /put_feedback, feedback
+    u->s: POST: /log_data, feedback
     note left of s
         `time_left_channel' should be an integer
         offset from `$start'. If the user did not
@@ -46,20 +47,19 @@ opt Feedback Handling
         be included in the JSON object and its
         value should be `NULL'.
     end note
-    u->s: POST: /put_feedback, feedback
+    u->s: POST: /log_data, feedback
     s->-c: {'feedback': {user: time_left_channel for each user on channel at $start}}
-    u->s: POST: /put_feedback, feedback
+    u->s: POST: /log_data, feedback
 end
 
 opt Session Starting
-    u->+s: GET: /start
+    u->+s: Presses start button or automatically at session.start
     s->+c: POST: /start, {'output_dir' : string }
     note left of c
         Epoch is the end of the creation of the
         first example
     end note
     c->-s: REPLY: {'epoch': integer}
-    s->-u: Update overview
 end
 
 opt Iteration
@@ -71,7 +71,7 @@ opt Iteration
 end
 
 opt Session stopping
-    u->+s: GET: /stop
+    u->+s: Presses stop button or automatically at session.end
     note left of s
         Kill docker instance
     end note
