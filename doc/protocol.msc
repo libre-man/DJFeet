@@ -71,7 +71,7 @@ opt Session Starting
         Epoch is the end of the creation of the
         first example
     end note
-    c->s: POST: /controller_started: {'epoch': integer}
+    c->s: POST: /controller_started: {'id': integer, 'epoch': integer}
 end
 
 opt During Playback
