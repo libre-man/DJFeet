@@ -2,6 +2,7 @@
 
 from .helpers import EPSILON
 from .song import Song
+import dj_feet.feedback
 from collections import defaultdict
 import os
 import random
@@ -9,13 +10,15 @@ import librosa
 import numpy
 from sklearn.decomposition import PCA
 from copy import copy
+import scipy
+from pprint import pprint
 
 
 class Picker:
     def __init__(self):
         pass
 
-    def get_next_song(self, user_feedback):
+    def get_next_song(self, user_feedback, force=False):
         """Return a Song for the next song that should be used"""
         raise NotImplementedError("This should be overridden")
 
@@ -28,7 +31,7 @@ class SimplePicker(Picker):
             if os.path.isfile(os.path.join(song_folder, f))
         ]
 
-    def get_next_song(self, user_feedback):
+    def get_next_song(self, user_feedback, force=False):
         next_song = ""
         while not os.path.isfile(next_song):
             if not self.song_files:
@@ -46,6 +49,7 @@ class NCAPicker(Picker):
                  weight_amount=4,
                  cache_dir=None,
                  weights=None,
+                 feedback_method='default',
                  max_tempo_percent=None):
         super(NCAPicker, self).__init__()
 
@@ -62,6 +66,11 @@ class NCAPicker(Picker):
 
         if mfcc_amount < weight_amount:
             raise ValueError("You cannot have more weights than mfcc vectors")
+
+        self.get_feedback = getattr(dj_feet.feedback,
+                                    "feedback_" + feedback_method)
+        self.picked_songs = list()
+        self.done_transitions = list()
 
         self.song_distances = defaultdict(lambda: defaultdict(lambda: None))
         self.song_properties = dict()
@@ -110,12 +119,10 @@ class NCAPicker(Picker):
             else:
                 mfcc, tempo = self.get_mfcc_and_tempo(song_file, mfcc_amount)
                 if cache_dir:
-                    numpy.save(
-                        os.path.join(cache_dir, filename + "_mfcc"), mfcc)
-                    numpy.save(
-                        os.path.join(cache_dir, filename + "_tempo"), tempo)
-                    with open(
-                            os.path.join(cache_dir, filename + "_done"), "w+"):
+                    cache_file = os.path.join(cache_dir, filename)
+                    numpy.save(cache_file + "_mfcc", mfcc)
+                    numpy.save(cache_file + "_tempo", tempo)
+                    with open(cache_file + "_tempo", "w+"):
                         pass
             mfccs[song_file] = mfcc
             tempos[song_file] = tempo
@@ -165,28 +172,32 @@ class NCAPicker(Picker):
         tempo, _ = librosa.beat.beat_track(song, sr)
         return librosa.feature.mfcc(song, sr, None, mfcc_amount), tempo
 
-    def get_w_vector(self, pca):
+    @staticmethod
+    def get_w_vector(pca, weights):
         """Get a weighted pca matrix"""
         return numpy.array([
-            sum((elem * self.weights[i] for i, elem in enumerate(row)))
+            sum((elem * weights[i] for i, elem in enumerate(row)))
             for row in pca
         ])
 
-    def covariance(self, song_file):  #
+    def covariance(self, song_file, weights):
         """Calculate a (approximation) of the covariance matrix using PCA and a
         cholesky decomposition."""
         cholesky, _, _unused = self.song_properties[song_file]
-        d = numpy.dot(numpy.diag(self.get_w_vector(self.pca)), cholesky)
+        d = numpy.dot(
+            numpy.diag(self.get_w_vector(self.pca, weights)), cholesky)
         return numpy.dot(d, d.T)
 
-    def distance(self, song_q, song_p):
+    def distance(self, song_q, song_p, weights=None):
         """Calculate the distance between two MFCCs. This is based on this
         paper: http://cs229.stanford.edu/proj2009/RajaniEkkizogloy.pdf
         """
+        if weights is None:
+            weights = self.weights
 
         def kl(p, q):
-            cov_p = self.covariance(p)
-            cov_q = self.covariance(q)
+            cov_p = self.covariance(p, weights)
+            cov_q = self.covariance(q, weights)
             cov_q_inv = numpy.linalg.inv(cov_q)
             m_p = self.song_properties[p][1]
             m_q = self.song_properties[q][1]
@@ -199,20 +210,34 @@ class NCAPicker(Picker):
 
         return (kl(song_q, song_p) + kl(song_p, song_q)) / 2
 
-    def get_next_song(self, user_feedback):
+    def get_next_song(self, user_feedback, force=False):
         """Get the next song to play. Do this by random for the first and
         otherwise use `_find_next_song`"""
         # We have only one song remaining so we won't be able to pick good new
         # songs. So reset all the available songs.
         if len(self.song_files) == 1:
             self.reset_songs()
+        if (not force) and len(self.picked_songs) == 5:
+            old = self.picked_songs.pop(0)
+            if old != self.picked_songs[-4]:
+                new = self.picked_songs[-4]
+                user_feedback.update({"old": old, "new": new})
+                self.done_transitions.append(
+                    (old, new, self.get_feedback(user_feedback)))
+                self._optimize_weights()
 
         if self.current_song is None:  # First pick, simply select random
-            next_song = random.choice(self.song_files)
+            next_song = random.choice(self.all_but_current_song()
+                                      if force else self.song_files)
         else:
-            next_song = self._find_next_song()
+            next_song = self._find_next_song(force)
 
-        if self.current_song == next_song:  # Kept same song
+        if force:
+            self.picked_songs[-1] = next_song
+        else:
+            self.picked_songs.append(next_song)
+
+        if (not force) and self.current_song == next_song:  # Kept same song
             self.streak += 1
         elif self.current_song is not None:
             # Remove the old song from the available so we have fresh tunes
@@ -222,14 +247,15 @@ class NCAPicker(Picker):
         self.current_song = next_song
         return Song(next_song)
 
-    def _find_next_song(self):
+    def _find_next_song(self, force, force_hard=0):
         """Find the next song by getting the distance between the current and
         the potential song, doing softmax with these distances and getting one
         by chance. Based on this paper:
         http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
         """
         max_dst = 0
-        for song_file in self.all_but_current_song(filter_songs=True):
+        filter_songs = force_hard < 2
+        for song_file in self.all_but_current_song(filter_songs=filter_songs):
             # calc distance between song_file and current_song
             dst = self.song_distances[self.current_song][song_file]
             if dst is None:
@@ -246,29 +272,27 @@ class NCAPicker(Picker):
 
         # Now calculate the distance sum needed for softmax
         distance_sum = 0
-        for song_file in self.all_but_current_song(filter_songs=True):
+        for song_file in self.all_but_current_song(filter_songs=filter_songs):
             dst = self.song_distances[self.current_song][song_file]
             distance_sum += numpy.power(numpy.e, -(dst * factor))
 
         chances = []
-        for song_file in self.all_close_songs():
+        for song_file in self.all_but_current_song(filter_songs=filter_songs):
             # Append the softmax chances to the chances list
             if song_file != self.current_song:
                 dst = self.song_distances[self.current_song][song_file]
                 chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
                 chances.append((song_file, chance))
 
-        # Square the chances and then normalize them again. This has the
-        # advantage of giving relative high chances, so similar songs, a
-        # relative higher chance will still remaining a vector sum of 1.
-        for i in range(len(chances)):
-            chances[i] = (chances[i][0], chances[i][1]**2)
-        chance_sum = sum((x[1] for x in chances))
-        for i in range(len(chances)):
-            chances[i] = (chances[i][0], chances[i][1] / chance_sum)
+        chances = self.normalize_chances(chances)
 
-        chances.append(
-            (self.current_song, 1 / (1 + self.streak * self.multiplier)))
+        if not force:
+            chances.append(
+                (self.current_song, 1 / (1 + self.streak * self.multiplier)))
+
+        if not chances:
+            self.reset_songs()
+            return self._find_next_song(force, force_hard=force_hard + 1)
 
         # Sort the chances by descending chance
         chances.sort(key=lambda x: x[1])
@@ -283,6 +307,58 @@ class NCAPicker(Picker):
                     next_song = song_file
                     break
         return next_song
+
+    @staticmethod
+    def normalize_chances(original_chances):
+        """Normilize the chances by squaring them and normalizing them again.
+        Square the chances and then normalize them again. This has the
+        advantage of giving relative high chances, so similar songs, a
+        relative higher chance will still remaining a vector sum of 1.
+        NOTE: The chances should be a list of tuples in which the second item
+        is the chance.
+        """
+        chances = list()
+        for chance in original_chances:
+            chances.append((chance[0], chance[1]**2))
+        chance_sum = sum((x[1] for x in chances))
+        for i in range(len(chances)):
+            chances[i] = (chances[i][0], chances[i][1] / chance_sum)
+        return chances
+
+    def _optimize_weights(self):
+        def func_to_optimize(weights):
+            feedback_dsts = list()
+            feedback_chances = list()
+            max_dst = -1
+            for prev_song, next_song, feedback in self.done_transitions:
+                dst = self.distance(prev_song, next_song, weights)
+                feedback_dsts.append((feedback, dst))
+                max_dst = max(max_dst, dst)
+            factor = 50 / float(max_dst)
+            distance_sum = sum((dst * factor for _, dst in feedback_dsts))
+            for feedback, dst in feedback_dsts:
+                chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
+                feedback_chances.append((feedback, chance))
+            feedback_chances = self.normalize_chances(feedback_chances)
+            res_diff = 0
+            for feedback, chance in feedback_chances:
+                res_diff = abs(feedback - chance)
+            return res_diff
+
+        def contrains_fun(weights):
+            diff = sum(weights) - 1
+            return diff
+
+        res = scipy.optimize.minimize(
+            func_to_optimize,
+            tuple(self.weights),
+            method='SLSQP',
+            constraints={'type': 'eq',
+                         'fun': contrains_fun},
+            jac=False,
+            bounds=[[0, 1] for _ in self.weights])
+        if res.success:
+            self.weights = res.x
 
     def all_but_current_song(self, filter_songs=True):
         """A generator that yields all but the current song of all played
@@ -301,5 +377,6 @@ class NCAPicker(Picker):
         tempo_factor = self.max_tempo_percent / 100
         for song_file in self.song_files:
             _, _unused, other_tempo = self.song_properties[song_file]
-            if tempo_factor * other_tempo > abs(base_tempo - other_tempo):
+            tempo_offset = abs(base_tempo - other_tempo)
+            if (self.max_tempo_percent / 100) * other_tempo > tempo_offset:
                 yield song_file

@@ -58,3 +58,13 @@ class Song:
                 beat_tracks.append(bt)
 
         return beat_tracks
+
+    def segment_size_left(self, segment_size):
+        """
+        Returns true if there's more or equal to segment_size time left in the
+        song starting from curr_time, false if not.
+        """
+        curr_sample = librosa.core.time_to_samples(np.array(self.curr_time),
+                                                   self.sampling_rate)
+        return self.time_delta(curr_sample,
+                               len(self.time_series) - 1) >= segment_size

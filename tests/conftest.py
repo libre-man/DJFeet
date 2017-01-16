@@ -23,7 +23,7 @@ def songs_dir():
 def random_song_file(songs_dir):
     song_files = [
         os.path.join(songs_dir, f) for f in os.listdir(songs_dir)
-        if os.path.isfile(os.path.join(songs_dir, f))
+        if os.path.isfile(os.path.join(songs_dir, f)) and f != ".DS_Store"
     ]
     yield random.choice(song_files)
 
@@ -32,7 +32,7 @@ def random_song_file(songs_dir):
 def random_song_files(songs_dir):
     song_files = [
         os.path.join(songs_dir, f) for f in os.listdir(songs_dir)
-        if os.path.isfile(os.path.join(songs_dir, f))
+        if os.path.isfile(os.path.join(songs_dir, f)) and f != ".DS_Store"
     ]
     random.shuffle(song_files)
     yield song_files

@@ -3,6 +3,7 @@ import librosa
 from pydub import AudioSegment
 from .song import Song
 from tempfile import NamedTemporaryFile
+import datetime
 import numpy as np
 
 
@@ -28,6 +29,8 @@ class InfJukeboxTransitioner(Transitioner):
     def __init__(self, output, segment_size=30):
         self.output = output
         self.segment_size = segment_size
+        self.segment_delta = datetime.timedelta(seconds=segment_size)
+        first = False
 
     def merge(self, prev_song, next_song):
         """
@@ -38,6 +41,10 @@ class InfJukeboxTransitioner(Transitioner):
         Note: next_song can be the same as prev_song, the next segment of this
               song is returned in this case.
         """
+        # Check whether the previous song still has segment size of time left
+        if not prev_song.segment_size_left(self.segment_size):
+            raise ValueError("Song time exceeded")
+
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
         seg_start, seg_end = prev_song.next_segment(self.segment_size)
@@ -45,7 +52,9 @@ class InfJukeboxTransitioner(Transitioner):
         # Check if the next song is the same as the current song.
         if prev_song.file_location is next_song.file_location:
             # If it is the same song, return the next segment.
-            return prev_song.time_series[seg_start:seg_end]
+            return prev_song.time_series[seg_start:
+                                         seg_end], datetime.timedelta(
+                                             seconds=self.segment_size)
         else:
             # If it's not the same song, compare both songs and find similar
             # frames to transition on. These are looked for in the upcoming
@@ -58,16 +67,22 @@ class InfJukeboxTransitioner(Transitioner):
             # calculate the time (in seconds) that is between the start of the
             # next segment of this song and the found frame.
             prev_song_time = prev_song.time_delta(seg_start, prev_frame)
+
             # When above time in seconds is found, it can be subtracted from
             # the segment size to find the remaining time to be filled by the
             # next song. Now calculate to what frame the next song should go.
+            # TODO: This doesn't work if we merged song $X to song $X and after
+            # this we merge $X to song $Y as we take a segment here of the sart
+            # of song $X.
             final_frame = next_song.frame_to_segment_time(
                 self.segment_size - prev_song_time, next_frame)
 
+            # TODO: No errors with mixing frames / segments?
             return np.append(
                 np.append(prev_song.time_series[seg_start:prev_frame],
-                          transition),
-                next_song.time_series[next_frame:final_frame])
+                          transition), next_song.time_series[
+                              next_frame:final_frame]), datetime.timedelta(
+                                  seconds=next_song.time_delta(0, next_frame))
 
     def combine_similar_frames(self, prev_song, next_song, seg_start, seg_end):
         """
@@ -91,9 +106,11 @@ class InfJukeboxTransitioner(Transitioner):
                     prev_song.time_series[prev_bt[p]:prev_bt[p + 1]],
                     next_song.time_series[next_bt[n]:next_bt[n + 1]],
                     mode="valid")
-                # TODO: Optimize the way to interpret the cross correlation!!
-                if corr[0] >= highest:
-                    highest = corr[0]
+                # Check whether the average of the array is higher than the
+                # highest previous found beat.
+                average = np.average(corr)
+                if average >= highest:
+                    highest = average
                     highest_n = n
                     highest_p = p
         print(highest_p, highest_n)
@@ -115,9 +132,9 @@ class InfJukeboxTransitioner(Transitioner):
 
         for n in range(len(next_seg)):
             if n > len(prev_seg) - 1:
-                final_seg.append(next_seg[n] * (prev_delta * n))
+                final_seg.append(next_seg[n] * (next_delta * n))
             else:
-                final_seg[n] += next_seg[n] * (prev_delta * n)
+                final_seg[n] += next_seg[n] * (next_delta * n)
 
         return final_seg
 

@@ -51,11 +51,14 @@ def simple_picker(songs_dir):
                                [True], [(2, None), (4, [0.2, 0.3, 0.2, 0.3])]))
 def nca_picker(request, cache_dir, songs_dir):
     cache, (weight_amount, weights) = request.param
-    yield pickers.NCAPicker(
+    picker = pickers.NCAPicker(
         songs_dir,
         cache_dir=cache_dir if cache else None,
         weight_amount=weight_amount,
         weights=weights)
+    assert weights is None or len(picker.weights) == len(weights)
+    yield picker
+    assert weights is None or len(picker.weights) == len(weights)
     gc.collect()
 
 
@@ -73,7 +76,7 @@ def test_base_picker(picker_base, user_feedback):
 def test_all_pickers(all_pickers):
     assert issubclass(all_pickers, pickers.Picker)
     assert callable(all_pickers.get_next_song)
-    assert all_pickers.get_next_song.__code__.co_argcount == 2
+    assert all_pickers.get_next_song.__code__.co_argcount == 3
 
 
 def test_simple_picker_no_files_left(monkeypatch, simple_picker):
@@ -126,9 +129,80 @@ def test_nca_picker_distance(nca_picker, same, songs_dir, random_song_files):
         assert abs(res_1) > EPSILON
 
 
+def text_nca_picker_feedback(nca_picker, monkeypatch, songs_dir):
+    def my_get_userfeedback(feedback):
+        assert feedback['old'] == feedback['good_old']
+        assert feedback['new'] == feedback['good_new']
+        assert feedback['old'].file_location != feedback['old'].file_location
+        return feedback['number']
+
+    mocked__optimize_weights = MockingFunction()
+    mocked_get_userfeedback = MockingFunction(func=my_get_userfeedback)
+    songs = []
+
+    monkeypatch.setattr(nca_picker, 'get_userfeedback',
+                        mocked_get_userfeedback)
+    monkeypatch.setattr(nca_picker, '_optimize_weights',
+                        mocked__optimize_weights)
+
+    songs.append(nca_picker.get_next_song(None))
+    songs.append(nca_picker.get_next_song(None))
+    songs.append(nca_picker.get_next_song(None))
+
+    # Here (4th time) the core will start sending feedback. However this uses a
+    # non existing Seg-1 so it should not be used. See docs/timing.dt for more
+    # information.
+    songs.append(nca_picker.get_next_song(None))
+
+    for i in range(10):
+        songs.append(
+            nca_picker.get_next_song({
+                'good_old': songs[-5],
+                'good_new': songs[-4],
+                'number': i,
+            }))
+
+    assert mocked_get_userfeedback.called
+    assert mocked__optimize_weights.called
+
+
 def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
+    real_rand = random.random
+
+    def feedback_test(feedback):
+        options = {
+            "1453492_Regina_Original_Mix.wav": 0.8,
+            "1665536_Hear_Me_Out_Original_Mix.wav": 0.3,
+            "2064084_New_Day_Original_Mix.wav": 0.7,
+            "2739576_Hunger_Original_Mix.wav": 0.1,
+            "1313776_Slazenger_Joseph_Capriati_Remix.wav": 0.1,
+            "1588390_Where_2D_Meets_3D_Chris_Liebing_Remix.wav": 0.1,
+            "1928097_Egoist_Original_Mix.wav": 0.1,
+            "22538_Panikattack_Original_Mix.wav": 0.1,
+            "3030059_Neve___Me_Original_Mix.wav": 0.1,
+        }
+        needle = False
+        if feedback['old'].find("Bubbler") > 0:
+            needle = feedback['new']
+        if feedback['new'].find("Bubbler") > 0:
+            needle = feedback['old']
+        if needle:
+            for key, value in options.items():
+                if key.find(needle) > 0:
+                    return value
+
+        return real_rand()
+
     mock_random = MockingFunction(func=lambda: 0.99999999999, simple=True)
     monkeypatch.setattr(random, 'random', mock_random)
+    real_rand()
+    assert not mock_random.called
+
+    mock_feedback = MockingFunction(func=feedback_test)
+    nca_picker.get_feedback = mock_feedback
+
+    streak = 0
+
     next_song = nca_picker.get_next_song({})
     next_song2 = nca_picker.get_next_song({})
     assert isinstance(next_song2, dj_feet.song.Song)
@@ -136,13 +210,19 @@ def test_nca_picker_next_song(nca_picker, monkeypatch, songs_dir):
     assert next_song.file_location == next_song2.file_location
     monkeypatch.undo()
     for _ in range(50):
-        next_song2 = nca_picker.get_next_song({})
+        next_song2_new = nca_picker.get_next_song({}, force=streak > 3)
+        if next_song2.file_location == next_song2_new.file_location:
+            streak += 1
+        else:
+            streak = 0
+        next_song2 = next_song2_new
         songs.append(next_song2.file_location)
         assert next_song2 is not None
         assert isinstance(next_song2, dj_feet.song.Song)
     if next_song == next_song2:
         pprint(nca_picker.song_distances)
     pprint(songs)
+    assert mock_feedback.called
     assert len(songs) == 51
 
 
@@ -189,11 +269,49 @@ def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
     pickers.NCAPicker(songs_dir, cache_dir=cache_dir, **kwargs)
 
 
+@pytest.mark.parametrize('_', range(20))
+def test_preserving_force(monkeypatch, nca_picker, _):
+    amount = 0
+    prev = None
+
+    def call_and_add(amount, prev):
+        new = nca_picker.get_next_song({})
+        if prev is None or new.file_location != prev.file_location:
+            return amount + 1, new
+        return amount, new
+
+    mock_get_feedback = MockingFunction(func=lambda: 1, simple=True)
+    nca_picker.get_feedback = mock_get_feedback
+    monkeypatch.setattr(nca_picker, '_optimize_weights',
+                        lambda: mock_get_feedback({}))
+
+    for _ in range(5):
+        amount, prev = call_and_add(amount, prev)
+    assert not mock_get_feedback.called
+
+    for _ in range(10):
+        forced = nca_picker.get_next_song({}, force=True)
+        assert forced.file_location != prev.file_location
+        prev = forced
+
+    assert not mock_get_feedback.called
+    assert len(nca_picker.picked_songs) == 5
+
+    while amount <= 5:
+        amount, prev = call_and_add(amount, prev)
+
+    assert len(nca_picker.picked_songs) == 5
+    if not mock_get_feedback.called:
+        print(nca_picker.picked_songs)
+    assert mock_get_feedback.called
+
+
 @slow
 @pytest.mark.parametrize("amount", [1, 5, 20])
 def test_get_mfcc(random_song_file, amount):
     song, sr = librosa.load(random_song_file)
     mfcc = librosa.feature.mfcc(song, sr, None, amount)
-    same = mfcc == pickers.NCAPicker.get_mfcc_and_tempo(random_song_file,
-                                                        amount)[0]
+    mfcc_res, _ = pickers.NCAPicker.get_mfcc_and_tempo(random_song_file,
+                                                       amount)
+    same = mfcc_res == mfcc
     assert hasattr(same, '__iter__') and same.all()
