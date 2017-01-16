@@ -254,7 +254,7 @@ class NCAPicker(Picker):
         http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
         """
         max_dst = 0
-        filter_songs=force_hard < 2
+        filter_songs = force_hard < 2
         for song_file in self.all_but_current_song(filter_songs=filter_songs):
             # calc distance between song_file and current_song
             dst = self.song_distances[self.current_song][song_file]
@@ -292,7 +292,7 @@ class NCAPicker(Picker):
 
         if not chances:
             self.reset_songs()
-            return self._find_next_song(force, force_hard=force_hard+1)
+            return self._find_next_song(force, force_hard=force_hard + 1)
 
         # Sort the chances by descending chance
         chances.sort(key=lambda x: x[1])

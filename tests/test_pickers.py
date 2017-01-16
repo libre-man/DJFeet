@@ -268,6 +268,7 @@ def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
                         lambda x, y, z: (True, True, False))
     pickers.NCAPicker(songs_dir, cache_dir=cache_dir, **kwargs)
 
+
 @pytest.mark.parametrize('_', range(20))
 def test_preserving_force(monkeypatch, nca_picker, _):
     amount = 0
@@ -281,7 +282,8 @@ def test_preserving_force(monkeypatch, nca_picker, _):
 
     mock_get_feedback = MockingFunction(func=lambda: 1, simple=True)
     nca_picker.get_feedback = mock_get_feedback
-    monkeypatch.setattr(nca_picker, '_optimize_weights', lambda: mock_get_feedback({}))
+    monkeypatch.setattr(nca_picker, '_optimize_weights',
+                        lambda: mock_get_feedback({}))
 
     for _ in range(5):
         amount, prev = call_and_add(amount, prev)
