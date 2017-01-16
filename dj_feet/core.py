@@ -17,8 +17,14 @@ def loop(controller, picker, transitioner, communicator):
         else:
             feedback = {}
 
-        new_sample = picker.get_next_song(feedback)
-        result, merge_offset = transitioner.merge(old_sample, new_sample)
+        new_sample = picker.get_next_song(feedback, force=False)
+        while True:
+            try:
+                result, merge_offset = transitioner.merge(old_sample,
+                                                          new_sample)
+                break
+            except ValueError:
+                new_sample = picker.get_next_song(feedback, force=True)
 
         if merge_times:
             # First update the previous segment with an ending time

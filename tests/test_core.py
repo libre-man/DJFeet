@@ -13,13 +13,29 @@ import dj_feet.core as core
 
 
 @pytest.fixture
+def mock_forcing_picker():
+    class MockPicker:
+        def __init__(self):
+            self.feedback = []
+            self.emitted = []
+
+        def get_next_song(self, _, force):
+            if force:
+                return random.random()
+            else:
+                return -1
+
+    yield MockPicker()
+
+
+@pytest.fixture
 def mock_picker():
     class MockPicker:
         def __init__(self):
             self.feedback = []
             self.emitted = []
 
-        def get_next_song(self, feedback):
+        def get_next_song(self, feedback, force):
             to_emit = random.random()
             self.feedback.append(feedback)
             self.emitted.append(to_emit)
@@ -54,6 +70,30 @@ def mock_controller(request):
             return to_emit
 
     yield MockController(*request.param)
+
+
+@pytest.fixture
+def mock_exception_transitioner():
+    class MockTransitioner:
+        def __init__(self):
+            self.prev = None
+            self.throw = False
+            self.out = None
+
+        def merge(self, _, new):
+            if self.throw:
+                self.throw = False
+                raise ValueError('WAAA!')
+            self.throw = True
+            assert new != self.prev
+            self.prev = new
+            self.out = random.random()
+            return self.out, 30
+
+        def write(self, sample):
+            assert sample == self.out
+
+    yield MockTransitioner()
 
 
 @pytest.fixture
@@ -100,6 +140,16 @@ def mock_communicator():
             return self.emitted[-1]
 
     yield MockCommunicator()
+
+
+def test_loop_excpetion(monkeypatch, mock_controller, mock_forcing_picker,
+                        mock_exception_transitioner, mock_communicator,
+                        capsys):
+    mock_sleep = MockingFunction(lambda: None, simple=True)
+    monkeypatch.setattr(time, 'sleep', mock_sleep)
+    core.loop(mock_controller, mock_forcing_picker,
+              mock_exception_transitioner, mock_communicator)
+    _, err = capsys.readouterr()
 
 
 def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
