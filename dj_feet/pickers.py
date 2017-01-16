@@ -217,7 +217,7 @@ class NCAPicker(Picker):
         # songs. So reset all the available songs.
         if len(self.song_files) == 1:
             self.reset_songs()
-        if len(self.picked_songs) == 5:
+        if (not force) and len(self.picked_songs) == 5:
             old = self.picked_songs.pop(0)
             if old != self.picked_songs[-4]:
                 new = self.picked_songs[-4]
@@ -231,9 +231,13 @@ class NCAPicker(Picker):
                                       if force else self.song_files)
         else:
             next_song = self._find_next_song(force)
-        self.picked_songs.append(next_song)
 
-        if self.current_song == next_song:  # Kept same song
+        if force:
+            self.picked_songs[-1] = next_song
+        else:
+            self.picked_songs.append(next_song)
+
+        if (not force) and self.current_song == next_song:  # Kept same song
             self.streak += 1
         elif self.current_song is not None:
             # Remove the old song from the available so we have fresh tunes
@@ -243,14 +247,15 @@ class NCAPicker(Picker):
         self.current_song = next_song
         return Song(next_song)
 
-    def _find_next_song(self, force):
+    def _find_next_song(self, force, force_hard=0):
         """Find the next song by getting the distance between the current and
         the potential song, doing softmax with these distances and getting one
         by chance. Based on this paper:
         http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
         """
         max_dst = 0
-        for song_file in self.all_but_current_song(filter_songs=True):
+        filter_songs=force_hard < 2
+        for song_file in self.all_but_current_song(filter_songs=filter_songs):
             # calc distance between song_file and current_song
             dst = self.song_distances[self.current_song][song_file]
             if dst is None:
@@ -267,12 +272,12 @@ class NCAPicker(Picker):
 
         # Now calculate the distance sum needed for softmax
         distance_sum = 0
-        for song_file in self.all_but_current_song(filter_songs=True):
+        for song_file in self.all_but_current_song(filter_songs=filter_songs):
             dst = self.song_distances[self.current_song][song_file]
             distance_sum += numpy.power(numpy.e, -(dst * factor))
 
         chances = []
-        for song_file in self.all_but_current_song(filter_songs=True):
+        for song_file in self.all_but_current_song(filter_songs=filter_songs):
             # Append the softmax chances to the chances list
             if song_file != self.current_song:
                 dst = self.song_distances[self.current_song][song_file]
@@ -287,7 +292,7 @@ class NCAPicker(Picker):
 
         if not chances:
             self.reset_songs()
-            return self._find_next_song(force)
+            return self._find_next_song(force, force_hard=force_hard+1)
 
         # Sort the chances by descending chance
         chances.sort(key=lambda x: x[1])

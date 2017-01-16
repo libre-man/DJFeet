@@ -268,6 +268,41 @@ def test_broken_nca_config(monkeypatch, songs_dir, cache_dir, kwargs):
                         lambda x, y, z: (True, True, False))
     pickers.NCAPicker(songs_dir, cache_dir=cache_dir, **kwargs)
 
+@pytest.mark.parametrize('_', range(20))
+def test_preserving_force(monkeypatch, nca_picker, _):
+    amount = 0
+    prev = None
+
+    def call_and_add(amount, prev):
+        new = nca_picker.get_next_song({})
+        if prev is None or new.file_location != prev.file_location:
+            return amount + 1, new
+        return amount, new
+
+    mock_get_feedback = MockingFunction(func=lambda: 1, simple=True)
+    nca_picker.get_feedback = mock_get_feedback
+    monkeypatch.setattr(nca_picker, '_optimize_weights', lambda: mock_get_feedback({}))
+
+    for _ in range(5):
+        amount, prev = call_and_add(amount, prev)
+    assert not mock_get_feedback.called
+
+    for _ in range(10):
+        forced = nca_picker.get_next_song({}, force=True)
+        assert forced.file_location != prev.file_location
+        prev = forced
+
+    assert not mock_get_feedback.called
+    assert len(nca_picker.picked_songs) == 5
+
+    while amount <= 5:
+        amount, prev = call_and_add(amount, prev)
+
+    assert len(nca_picker.picked_songs) == 5
+    if not mock_get_feedback.called:
+        print(nca_picker.picked_songs)
+    assert mock_get_feedback.called
+
 
 @slow
 @pytest.mark.parametrize("amount", [1, 5, 20])
