@@ -374,6 +374,7 @@ class NCAPicker(Picker):
         if base_song is None:
             base_song = self.current_song
         _, _unused, base_tempo = self.song_properties[base_song]
+        tempo_factor = self.max_tempo_percent / 100
         for song_file in self.song_files:
             _, _unused, other_tempo = self.song_properties[song_file]
             tempo_offset = abs(base_tempo - other_tempo)
