@@ -17,7 +17,7 @@ opt Startup
     note over c, s
         Create a docker giving the controller an unique integer id.
     end note
-    c->s: GET: /im_alive, {id: integer}
+    c->s: POST: /im_alive, {id: integer}
 end
 
 opt Setup
@@ -29,8 +29,8 @@ opt Setup
         opt Add Music
             u->+s: Add music file in control panel
             s->u: Update music overview to pending
-            s->+c: POST: /add_music, {'file_location' : string}
-            c->-s: done
+            s->c: POST: /add_music, {'file_location' : string, 'id': integer}
+            c->s: POST: /music_processed, {'id' : integer}
             s->-u: Update music overview
         end
 
@@ -66,12 +66,12 @@ end
 
 opt Session Starting
     u->s: Presses start button or automatically at session.start
-    s->+c: POST: /start, {'output_dir' : string }
+    s->c: POST: /start, {'output_dir' : string }
     note left of c
         Epoch is the end of the creation of the
         first example
     end note
-    c->-s: REPLY: {'epoch': integer}
+    c->s: POST: /controller_started: {'epoch': integer}
 end
 
 opt During Playback
