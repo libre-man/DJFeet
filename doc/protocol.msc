@@ -17,7 +17,16 @@ opt Startup
     note over c, s
         Create a docker giving the controller an unique integer id.
     end note
-    c->s: POST: /im_alive, {id: integer}
+    note left of c
+        `options` should be contain possible option possible
+        in the lifetime of this controller.
+
+        Subjects are all the parts of the controller:
+        ['picker', 'transitioner', 'communicator', 'controller']
+        `option` is of the type:
+        {name: string, doc: string, required: bool, fixed: bool}
+    end note
+    c->s: POST: /im_alive, {id: integer, options: {subject: {part: {part_option: option in part_options} in parts} in subjects}}
 end
 
 opt Setup
@@ -41,24 +50,6 @@ opt Setup
             note left of c
                 file_location should be the same as in
                 /add_music
-            end note
-        end
-    end
-
-    opt Configuration getters
-        opt General config
-            s->+c: POST: /possible_classes, {'parts': [options in 'controller', 'picker', 'transitioner', 'communicator']}
-            c->-s: {part: options for part in parts}
-        end
-
-        opt Specific config
-            s->+c: POST: /possible_variables, {'part': string, 'option': string}
-            note left of s
-                The option has to be present in the result from 'possible_classses'.
-            end note
-            c->-s: {variable: {docstring: string, required : bool, fixed: bool} for variable in variables_for_part_option}
-            note left of c
-                Fixed means the option is not configurable.
             end note
         end
     end
