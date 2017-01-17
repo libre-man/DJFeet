@@ -99,3 +99,9 @@ ENV/
 *.flac
 *.zip
 *.ogg
+*.png
+*.jpg
+*.svg
+*.pdf
+*.html
+*.jpeg
