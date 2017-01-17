@@ -15,7 +15,9 @@ end note
 
 opt Startup
     note over c, s
-        Create a docker giving the controller an unique integer id.
+        Create a docker giving the controller an unique integer id and the server web address.
+        This is done by giving the start script of the controller 2 command line arguments when starting:
+        `--id integer --server string`
     end note
     note left of c
         `options` should be contain possible option possible
