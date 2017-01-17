@@ -1,7 +1,7 @@
 image: python:3.5
 
 before_script:
-  - apt-get update -qy
+  - apt update -qy
   - pip install --upgrade pip
   - make setup
   - make test_setup
@@ -18,19 +18,20 @@ style_app:
 test:
   type: test
   cache:
-    untracked: true
     paths:
       - tests/test_data/songs
   script:
     - | # Download if needed
-      [[ -d tests/test_data/songs ]] || wget https://attach.libremail.nl/songs.tar.gz
-      [[ -d tests/test_data/songs ]] || tar xfvz songs.tar.gz
-      [[ -d tests/test_data/songs ]] || mv songs/ tests/test_data/
+      if ! [[ -d tests/test_data/songs ]]; then
+          wget https://attach.libremail.nl/songs.tar.gz
+          tar xfvz songs.tar.gz
+          mv songs/ tests/test_data/
+      fi
       mkdir -p coverage
       touch coverage/out
       rm coverage/out
       touch coverage/out
-      pytest -v --durations=30 --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/ | awk '{print >>(/^TOTAL/?"coverage/out":"/dev/stdout")}'
+      pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/ | awk '{print >>(/^TOTAL/?"coverage/out":"/dev/stdout")}'
   artifacts:
     expire_in: 31d
     paths:
@@ -38,8 +39,6 @@ test:
 
 coverage:
   type: post-test
-  before_script:
-    - echo Nothing necessary
   script:
     - cat coverage/out
     - cat coverage/out | sed 's/^.* \([^ ]*%\).*/\1/g'
@@ -49,3 +48,5 @@ coverage:
     paths:
     - coverage/index.html
     - coverage/assets/
+
+#old ^TOTAL.*\s+(\d+\%)$
