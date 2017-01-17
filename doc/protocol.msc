@@ -31,7 +31,7 @@ end
 
 opt Setup
     note over c,s,u
-        These operations can be can be reordered at will.
+        These operations can be reordered at will.
     end note
 
     opt Music management
@@ -45,12 +45,14 @@ opt Setup
 
         opt Delete Music
             u->+s: Delete music file from control panel
-            s->-u: Update music overview
+            s->u: Update music overview to pending
             s->c: POST: /delete_music, {file_location: string}
             note left of c
                 file_location should be the same as in
                 /add_music
             end note
+            c->s: POST: /music_deleted, {id: integer}
+            s->-u: Update music overview
         end
     end
 end
