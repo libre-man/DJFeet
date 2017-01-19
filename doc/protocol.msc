@@ -28,7 +28,7 @@ opt Startup
         `option` is of the type:
         {doc: string, required: bool, fixed: bool}
     end note
-    c->s: POST: /im_alive, {id: integer, options: {subject: {parts: {part: {part_option: option in part_options} in parts}, doc: string} in subjects}}
+    c->s: POST: /im_alive, {id: integer, options: {subject: {parts: {part: {part_option: option in part_options} in parts}, doc: {short: string, long: string}} in subjects}}
 end
 
 opt Setup
