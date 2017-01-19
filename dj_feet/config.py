@@ -10,6 +10,7 @@ class Config():
     """The main class for the config. This stores program config and the user
     config.
     """
+    FIXED_OPTIONS = ['song_folder']
 
     def __init__(self):
         self.user_config = ConfigParser()
@@ -19,6 +20,34 @@ class Config():
         if the config_file can be opened.
         """
         self.user_config.read_file(open(config_file))
+
+    @staticmethod
+    def get_all_options(baseclasses=None):
+        """Get all options for all classes according to this scheme:"""
+        configs = dict()
+        if baseclasses is None:
+            baseclasses = [Picker, Controller, Transitioner, Communicator]
+        for basecls in baseclasses:
+            configs[basecls.__name__] = dict()
+            for subcls in helpers.get_all_subclasses(basecls):
+                configs[basecls.__name__][subcls.__name__] = dict()
+                defaults = subcls.__init__.__defaults__
+                default_amount = 0
+                if isinstance(defaults, tuple):
+                    default_amount = len(defaults)
+                var_amount = len(subcls.__init__.__code__.co_varnames)
+                doc = helpers.parse_docstring(subcls.__init__.__doc__)
+                param_doc = doc['params']
+                for idx, arg in enumerate(
+                        subcls.__init__.__code__.co_varnames):
+                    if arg == "self":
+                        continue
+                    configs[basecls.__name__][subcls.__name__][arg] = {
+                        'doc': param_doc[arg] if arg in param_doc else "",
+                        'fixed': arg in Config.FIXED_OPTIONS,
+                        'required': idx < var_amount - default_amount
+                    }
+        return configs
 
     def _get_class_args(self, cls, config_key):
         """Get the arguments for the given class from the user config. If a
@@ -57,9 +86,8 @@ class Config():
         for cls in helpers.get_all_subclasses(basecls):
             if cls.__name__ == cls_name:
                 return cls
-        raise KeyError(
-            "Class {} could not be found as a subclass of {}".format(
-                cls_name, basecls.__name__))
+        raise KeyError("Class {} could not be found as a subclass of {}".
+                       format(cls_name, basecls.__name__))
 
     def get_controller(self, name=None):
         """Get a controller, name defaults to the name in the config.

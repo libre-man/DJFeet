@@ -72,29 +72,65 @@ class DefaultsMixingClass:
 
 
 @pytest.mark.parametrize("config_dict,cls,clsname,expected", [
-    ({'a': 1,
-      'b': 2}, NoInitClass, NoInitClass.__name__, {}),
-    ({'a': 1,
-      'b': 2}, NoArgsClass, NoArgsClass.__name__, {}),
+    ({
+        'a': 1,
+        'b': 2
+    }, NoInitClass, NoInitClass.__name__, {}),
+    ({
+        'a': 1,
+        'b': 2
+    }, NoArgsClass, NoArgsClass.__name__, {}),
     ({}, OnlyDefaultsClass, OnlyDefaultsClass.__name__, {}),
     ({}, TwoArgsClass, TwoArgsClass.__name__, KeyError),
-    ({'a': 1}, TwoArgsClass, TwoArgsClass.__name__, KeyError),
-    ({'a': 1,
-      'b': 2}, TwoArgsClass, TwoArgsClass.__name__, {'a': 1,
-                                                     'b': 2}),
-    ({'a': 1}, OnlyDefaultsClass, OnlyDefaultsClass.__name__, {'a': 1}),
-    ({'b': 3}, OnlyDefaultsClass, OnlyDefaultsClass.__name__, {'b': 3}),
-    ({'a': 'a',
-      'b': 3}, OnlyDefaultsClass, OnlyDefaultsClass.__name__, {'a': 'a',
-                                                               'b': 3}),
+    ({
+        'a': 1
+    }, TwoArgsClass, TwoArgsClass.__name__, KeyError),
+    ({
+        'a': 1,
+        'b': 2
+    }, TwoArgsClass, TwoArgsClass.__name__, {
+        'a': 1,
+        'b': 2
+    }),
+    ({
+        'a': 1
+    }, OnlyDefaultsClass, OnlyDefaultsClass.__name__, {
+        'a': 1
+    }),
+    ({
+        'b': 3
+    }, OnlyDefaultsClass, OnlyDefaultsClass.__name__, {
+        'b': 3
+    }),
+    ({
+        'a': 'a',
+        'b': 3
+    }, OnlyDefaultsClass, OnlyDefaultsClass.__name__, {
+        'a': 'a',
+        'b': 3
+    }),
     ({}, DefaultsMixingClass, OnlyDefaultsClass.__name__, KeyError),
-    ({'b': 3}, DefaultsMixingClass, OnlyDefaultsClass.__name__, KeyError),
-    ({'a': 4,
-      'b': 3}, DefaultsMixingClass, OnlyDefaultsClass.__name__, {'a': 4,
-                                                                 'b': 3}),
-    ({'a': 4}, DefaultsMixingClass, OnlyDefaultsClass.__name__, {'a': 4}),
-    ({'a': 4,
-      1: 100}, DefaultsMixingClass, OnlyDefaultsClass.__name__, {'a': 4}),
+    ({
+        'b': 3
+    }, DefaultsMixingClass, OnlyDefaultsClass.__name__, KeyError),
+    ({
+        'a': 4,
+        'b': 3
+    }, DefaultsMixingClass, OnlyDefaultsClass.__name__, {
+        'a': 4,
+        'b': 3
+    }),
+    ({
+        'a': 4
+    }, DefaultsMixingClass, OnlyDefaultsClass.__name__, {
+        'a': 4
+    }),
+    ({
+        'a': 4,
+        1: 100
+    }, DefaultsMixingClass, OnlyDefaultsClass.__name__, {
+        'a': 4
+    }),
 ])
 def test_get_class_args(config, monkeypatch, config_dict, cls, clsname,
                         expected):
@@ -121,14 +157,22 @@ class C(B):
         self.b = b
 
 
-@pytest.mark.parametrize("basecls, cls, cls_args", [(B, C, {'a': 1,
-                                                            'b': 2}),
-                                                    (B, A, {}),
-                                                    (A, B, {}),
-                                                    (A, C, {'a': 1,
-                                                            'b': 2}),
-                                                    (C, C, {'a': 'c',
-                                                            'b': -1}), ])
+@pytest.mark.parametrize("basecls, cls, cls_args", [
+    (B, C, {
+        'a': 1,
+        'b': 2
+    }),
+    (B, A, {}),
+    (A, B, {}),
+    (A, C, {
+        'a': 1,
+        'b': 2
+    }),
+    (C, C, {
+        'a': 'c',
+        'b': -1
+    }),
+])
 def test_get_class_instance(config, monkeypatch, basecls, cls, cls_args):
     mock_get_class = MockingFunction(lambda: cls, simple=True)
     mock_get_class_args = MockingFunction(lambda: cls_args, simple=True)
@@ -165,7 +209,9 @@ def test_get_class(config, monkeypatch, expected, basecls, cls_name,
             return config._get_class(basecls, cls_name)
         else:
             monkeypatch.setattr(config, "user_config",
-                                {'main': {basecls.__name__: cls_name}})
+                                {'main': {
+                                    basecls.__name__: cls_name
+                                }})
             return config._get_class(basecls, None)
 
     if isinstance(expected, type) and issubclass(expected, Exception):
@@ -185,18 +231,136 @@ def test_get_class(config, monkeypatch, expected, basecls, cls_name,
 ])
 def test_get_the_class_instance(config, monkeypatch, get_types_func, cls,
                                 boolean):
-    mock_get_class_instance = MockingFunction(lambda: cls(), simple=True)
+    mock_get_class_instance = MockingFunction(cls, simple=True)
     monkeypatch.setattr(config, '_get_class_instance', mock_get_class_instance)
     func = "get_" + get_types_func.__name__.lower()
     if boolean:
         inst = getattr(config, func)(cls)
         assert mock_get_class_instance.called
-        assert mock_get_class_instance.args[0][0] == (get_types_func,
-                                                      cls, )
+        assert mock_get_class_instance.args[0][0] == (
+            get_types_func,
+            cls, )
     else:
         inst = getattr(config, func)()
         assert mock_get_class_instance.called
-        assert mock_get_class_instance.args[0][0] == (get_types_func,
-                                                      None, )
+        assert mock_get_class_instance.args[0][0] == (
+            get_types_func,
+            None, )
 
     assert isinstance(inst, cls)
+
+
+class BaseClassOne():
+    pass
+
+
+class SubClassOneOne(BaseClassOne):
+    assertions = {
+        'required': {
+            'fixed': False,
+            'required': True,
+            'doc': "This is required"
+        },
+        'non_required': {
+            'fixed': False,
+            'required': False,
+            'doc': "This is not required"
+        }
+    }
+
+    def __init__(self, required, non_required=None):
+        """This is a function
+
+        :param required: This is required
+        :param non_required: This is not required
+        """
+        pass
+
+
+class SubClassOneTwo(BaseClassOne):
+    assertions = {
+        'non_required2': {
+            'fixed': False,
+            'required': False,
+            'doc': "This is not required"
+        }
+    }
+
+    def __init__(self, non_required2=None):
+        """This is a function
+
+        :param non_required2: This is not required
+        """
+        pass
+
+
+class BaseClassTwo():
+    pass
+
+
+class SubClassTwoOne(BaseClassTwo):
+    assertions = {}
+
+    def __init__(self):
+        """This is a function
+        """
+        pass
+
+
+class SubClassTwoTwo(BaseClassTwo):
+    assertions = {
+        'song_folder': {
+            'fixed': True,
+            'required': True,
+            'doc': "This is required but fixed"
+        },
+    }
+
+    def __init__(self, song_folder):
+        """This is a function
+
+        :param song_folder: This is required but fixed
+        """
+        pass
+
+
+class SubClassTwoThree(BaseClassTwo):
+    assertions = {'required2': {'fixed': False, 'required': True, 'doc': ""}, }
+
+    def __init__(self, required2):
+        """This is a function
+        """
+        pass
+
+
+@pytest.mark.parametrize("default", [True, False])
+def test_get_all_options(default):
+    if default:
+        res = Config.get_all_options()
+        assert len(res) == 4
+    else:
+        res = Config.get_all_options([BaseClassOne, BaseClassTwo])
+        assert len(res) == 2
+        base_1 = res['BaseClassOne']
+        base_2 = res['BaseClassTwo']
+
+        assert len(base_1) == 2
+        assert len(base_2) == 3
+
+        assert 'SubClassOneOne' in base_1
+        assert 'SubClassOneTwo' in base_1
+
+        assert 'SubClassTwoOne' in base_2
+        assert 'SubClassTwoTwo' in base_2
+        assert 'SubClassTwoThree' in base_2
+
+        all_subs = base_1.copy()
+        all_subs.update(base_2)
+
+        for name, items in all_subs.items():
+            for a_name, a_value in globals()[name].assertions.items():
+                assert a_name in items
+                for part in ['fixed', 'required', 'doc']:
+                    assert a_value[part] == items[a_name][part]
+                del items[a_name]
+            assert items == {}
