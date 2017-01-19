@@ -15,8 +15,8 @@ def parse_docstring(docstring):
     """Parse the docstring into its components.
     :returns: a dictionary of form
               {
-                  "short_description": ...,
-                  "long_description": ...,
+                  "short": ...,
+                  "long": ...,
                   "params": {"name": doc for each param},
                   "returns": ...
               }
@@ -51,8 +51,8 @@ def parse_docstring(docstring):
                     returns = reindent(match.group("doc"))
 
     return {
-        "short_description": short_description,
-        "long_description": long_description,
+        "short": short_description,
+        "long": long_description,
         "params": params,
         "returns": returns
     }
