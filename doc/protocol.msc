@@ -26,9 +26,9 @@ opt Startup
         Subjects are all the parts of the controller:
         [picker, transitioner, communicator, controller]
         `option` is of the type:
-        {name: string, doc: string, required: bool, fixed: bool}
+        {doc: string, required: bool, fixed: bool}
     end note
-    c->s: POST: /im_alive, {id: integer, options: {subject: {part: {part_option: option in part_options} in parts} in subjects}}
+    c->s: POST: /im_alive, {id: integer, options: {subject: {parts: {part: {part_option: option in part_options} in parts}, doc: string} in subjects}}
 end
 
 opt Setup
