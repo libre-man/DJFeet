@@ -79,27 +79,29 @@ def test_get_all_subclasses(baseclass, expected):
 @pytest.mark.parametrize("desc_short, desc_long, removed, params,returns", [
     ("A very short description", "This is a long description\nwith\nnewlines",
      "", {
-         "this_is_a_value": "Wow what a nice value!\nWow",
-         "An int": "me is normal for me"
+         "this_is_a_value": ("long_type", "Wow what a nice value!\nWow"),
+         "An_int": ("int", "me is normal for me")
      }, "Return a nice int\nright"),
     ("", "This is a long description\nwith\nnewlines", "", {
-        "this_is_a_value": "Wow what a nice value!\nWow",
-        "An int": "me is normal for me"
+        "this_is_a_value": ("another_type", "Wow what a nice value!\nWow"),
+        "An_int": ("int", "me is normal for me")
     }, "Return a nice int\nright"),
     ("", "This is a long description\nwith\nnewlines\n\n", "", {},
      "Return a nice int\nright"),
     ("", "This is a long description\nwith\nnewlines\n\n",
-     ":rtype: int\n     :type priority:BLAA", {}, "Return a nice int\nright"),
+     ":rtype: int\n     :type priority:BLAA", {
+         "int": ("a nice integer", "5")
+     }, "Return a nice int\nright"),
 ])
 def test_parse_docstring(desc_short, desc_long, params, returns, removed):
     string = desc_short + "\n\n" + desc_long + "\n\n" + removed + "\n\n"
     for key, desc in params.items():
-        string += ":param " + key + ": " + desc + "\n"
+        string += ":param " + desc[0] + " " + key + ": " + desc[1] + "\n"
     string += ":returns: " + returns
     res = helpers.parse_docstring(string)
-    for key, val in res['params'].items():
-        assert key in params
-        assert params[key] == val
+    for key, val in params.items():
+        assert key in res['params']
+        assert res['params'][key] == val[1]
     assert res['returns'] == returns
     assert res['short'] == desc_short.strip()
     assert res['long'] == desc_long.strip()
