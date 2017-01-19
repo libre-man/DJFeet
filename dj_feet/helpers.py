@@ -52,7 +52,8 @@ def parse_docstring(docstring):
 
     return {
         "short": short_description,
-        "long": long_description,
+        "long": "\n".join(line for line in long_description.split("\n")
+                          if not line.strip().startswith(":")).rstrip(),
         "params": params,
         "returns": returns
     }
