@@ -74,3 +74,22 @@ class SubClassMultipleDouble(SubClassMultiple, Stub):
 ])
 def test_get_all_subclasses(baseclass, expected):
     assert helpers.get_all_subclasses(baseclass) == expected
+
+
+@pytest.mark.parametrize("desc_short, desc_long, params,returns", [(
+    "A very short description", "This is a long description\nwith\nnewlines", {
+        "this_is_a_value": "Wow what a nice value!\nWow",
+        "An int": "me is normal for me"
+    }, "Return a nice int\nright")])
+def test_parse_docstring(desc_short, desc_long, params, returns):
+    string = desc_short + "\n\n" + desc_long + "\n\n"
+    for key, desc in params.items():
+        string += ":param " + key + ": " + desc + "\n"
+    string += ":returns: " + returns
+    res = helpers.parse_docstring(string)
+    for key, val in res['params'].items():
+        assert key in params
+        assert params[key] == val
+    assert res['returns'] == returns
+    assert res['short_description'] == desc_short
+    assert res['long_description'] == desc_long
