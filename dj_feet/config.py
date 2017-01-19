@@ -31,22 +31,35 @@ class Config():
             configs[basecls.__name__] = dict()
             for subcls in helpers.get_all_subclasses(basecls):
                 configs[basecls.__name__][subcls.__name__] = dict()
+                configs[basecls.__name__][subcls.__name__]['parts'] = dict()
+                configs[basecls.__name__][subcls.__name__]['doc'] = dict()
+
+                cls_doc = helpers.parse_docstring(subcls.__doc__)
+                init_doc = helpers.parse_docstring(subcls.__init__.__doc__)
+                param_doc = init_doc['params']
+
+                configs[basecls.__name__][subcls.__name__]['doc'][
+                    'short'] = cls_doc['short']
+                configs[basecls.__name__][subcls.__name__]['doc'][
+                    'long'] = cls_doc['long']
+
                 defaults = subcls.__init__.__defaults__
                 default_amount = 0
                 if isinstance(defaults, tuple):
                     default_amount = len(defaults)
                 var_amount = len(subcls.__init__.__code__.co_varnames)
-                doc = helpers.parse_docstring(subcls.__init__.__doc__)
-                param_doc = doc['params']
+
                 for idx, arg in enumerate(
                         subcls.__init__.__code__.co_varnames):
                     if arg == "self":
                         continue
-                    configs[basecls.__name__][subcls.__name__][arg] = {
+                    part = {
                         'doc': param_doc[arg] if arg in param_doc else "",
                         'fixed': arg in Config.FIXED_OPTIONS,
                         'required': idx < var_amount - default_amount
                     }
+                    configs[basecls.__name__][subcls.__name__]['parts'][
+                        arg] = part
         return configs
 
     def _get_class_args(self, cls, config_key):

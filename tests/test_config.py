@@ -255,16 +255,25 @@ class BaseClassOne():
 
 
 class SubClassOneOne(BaseClassOne):
+    """This should not influence params.
+
+    :param nice: wow not showing."""
     assertions = {
-        'required': {
-            'fixed': False,
-            'required': True,
-            'doc': "This is required"
+        'doc': {
+            'short': "This should not influence params.",
+            'long': ""
         },
-        'non_required': {
-            'fixed': False,
-            'required': False,
-            'doc': "This is not required"
+        'parts': {
+            'required': {
+                'fixed': False,
+                'required': True,
+                'doc': "This is required"
+            },
+            'non_required': {
+                'fixed': False,
+                'required': False,
+                'doc': "This is not required"
+            }
         }
     }
 
@@ -278,11 +287,23 @@ class SubClassOneOne(BaseClassOne):
 
 
 class SubClassOneTwo(BaseClassOne):
+    """
+
+    This should be long
+
+
+    """
     assertions = {
-        'non_required2': {
-            'fixed': False,
-            'required': False,
-            'doc': "This is not required"
+        'doc': {
+            'short': '',
+            'long': "This should be long"
+        },
+        'parts': {
+            'non_required2': {
+                'fixed': False,
+                'required': False,
+                'doc': "This is not required"
+            }
         }
     }
 
@@ -299,7 +320,17 @@ class BaseClassTwo():
 
 
 class SubClassTwoOne(BaseClassTwo):
-    assertions = {}
+    """This is short
+
+    And this is very long.
+    """
+    assertions = {
+        'doc': {
+            "short": "This is short",
+            'long': "And this is very long."
+        },
+        'parts': {}
+    }
 
     def __init__(self):
         """This is a function
@@ -309,11 +340,17 @@ class SubClassTwoOne(BaseClassTwo):
 
 class SubClassTwoTwo(BaseClassTwo):
     assertions = {
-        'song_folder': {
-            'fixed': True,
-            'required': True,
-            'doc': "This is required but fixed"
+        'doc': {
+            'short': "",
+            'long': ""
         },
+        'parts': {
+            'song_folder': {
+                'fixed': True,
+                'required': True,
+                'doc': "This is required but fixed"
+            },
+        }
     }
 
     def __init__(self, song_folder):
@@ -325,7 +362,20 @@ class SubClassTwoTwo(BaseClassTwo):
 
 
 class SubClassTwoThree(BaseClassTwo):
-    assertions = {'required2': {'fixed': False, 'required': True, 'doc': ""}, }
+    "This is subclass 23"
+    assertions = {
+        'doc': {
+            'short': "This is subclass 23",
+            'long': ''
+        },
+        'parts': {
+            'required2': {
+                'fixed': False,
+                'required': True,
+                'doc': ""
+            },
+        }
+    }
 
     def __init__(self, required2):
         """This is a function
@@ -358,9 +408,15 @@ def test_get_all_options(default):
         all_subs.update(base_2)
 
         for name, items in all_subs.items():
-            for a_name, a_value in globals()[name].assertions.items():
-                assert a_name in items
+            assertions = globals()[name].assertions
+            for a_name, a_value in assertions['parts'].items():
+                assert a_name in items['parts']
                 for part in ['fixed', 'required', 'doc']:
-                    assert a_value[part] == items[a_name][part]
-                del items[a_name]
+                    assert a_value[part] == items['parts'][a_name][part]
+                del items['parts'][a_name]
+            assert items['parts'] == {}
+            del items['parts']
+            assert items['doc']['short'] == assertions['doc']['short']
+            assert items['doc']['long'] == assertions['doc']['long']
+            del items['doc']
             assert items == {}
