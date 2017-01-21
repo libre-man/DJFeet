@@ -61,7 +61,7 @@ end
 
 opt Session Starting
     u->s: Presses start button or automatically at session.start
-    s->c: POST: /start, {output_dir: string}
+    c->s: POST: /start, {subject: {name: string, options: {part_option: value in part_options}} in subjects}
     note left of c
         Epoch is the end of the creation of the
         first example
