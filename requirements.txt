@@ -7,3 +7,4 @@ libfaketime
 pydub
 librosa
 numpy
+requests
