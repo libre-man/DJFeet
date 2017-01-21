@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
 import time
+import requests
 
 
-def loop(controller, picker, transitioner, communicator):
+def loop(app_id, remote, controller, picker, transitioner, communicator):
     merge_times = []
     new_sample = None
     old_sample = None
@@ -33,6 +34,12 @@ def loop(controller, picker, transitioner, communicator):
             # Now insert the starting time of the new segment
             merge_times.append([merge_offset])
         else:
+            requests.post(
+                remote + "/controller_started",
+                data={
+                    'id': app_id,
+                    'epoch': int(time.time())
+                })
             merge_times.append([0])
             segment_size = merge_offset
 

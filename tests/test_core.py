@@ -5,11 +5,19 @@ from helpers import MockingFunction
 import time
 import random
 import datetime
+import requests
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
 
 import dj_feet.core as core
+
+
+@pytest.fixture
+def patched_post(monkeypatch):
+    mocked_post = MockingFunction()
+    monkeypatch.setattr(requests, 'post', mocked_post)
+    yield mocked_post
 
 
 @pytest.fixture
@@ -143,20 +151,23 @@ def mock_communicator():
 
 
 def test_loop_excpetion(monkeypatch, mock_controller, mock_forcing_picker,
-                        mock_exception_transitioner, mock_communicator,
-                        capsys):
+                        mock_exception_transitioner, mock_communicator, capsys,
+                        patched_post):
     mock_sleep = MockingFunction(lambda: None, simple=True)
     monkeypatch.setattr(time, 'sleep', mock_sleep)
-    core.loop(mock_controller, mock_forcing_picker,
+    core.loop(0, 'localhost', mock_controller, mock_forcing_picker,
               mock_exception_transitioner, mock_communicator)
     _, err = capsys.readouterr()
 
 
 def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
-              mock_communicator, capsys):
+              mock_communicator, capsys, patched_post):
     mock_sleep = MockingFunction(lambda: None, simple=True)
     monkeypatch.setattr(time, 'sleep', mock_sleep)
-    core.loop(mock_controller, mock_picker, mock_transitioner,
+    now = int(time.time())
+    my_id = random.randint(1, 10010101)
+    my_addr = str(random.random()) + "/local"
+    core.loop(my_id, my_addr, mock_controller, mock_picker, mock_transitioner,
               mock_communicator)
     _, err = capsys.readouterr()
 
@@ -181,11 +192,17 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
 
     assert (not mock_picker.feedback) or mock_picker.feedback[0] == {}
 
-    if mock_controller.amount > 4:
+    if iterations > 4:
         correct_time = mock_transitioner.max_size * (
             iterations - 4) + mock_transitioner.merge_times[-4]
         assert mock_communicator.end_time == correct_time
         assert isinstance(mock_communicator.end_time, float)
+
+    if iterations > 0:
+        assert patched_post.called
+        assert patched_post.args[0][0][0] == my_addr + '/controller_started'
+        assert patched_post.args[0][1]['data']['id'] == my_id
+        assert patched_post.args[0][1]['data']['epoch'] == now
 
     i = 0
     for prev, new in mock_transitioner.merge_args:
