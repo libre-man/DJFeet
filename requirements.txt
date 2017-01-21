@@ -8,3 +8,4 @@ pydub
 librosa
 numpy
 requests
+flask
