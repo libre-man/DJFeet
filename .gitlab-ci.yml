@@ -2,6 +2,7 @@ image: python:3.5
 
 before_script:
   - apt update -qy
+  - apt-get install expect
   - pip install --upgrade pip
   - make setup
   - make test_setup
@@ -31,7 +32,7 @@ test:
       touch coverage/out
       rm coverage/out
       touch coverage/out
-      pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/ | awk '{print >>(/^TOTAL/?"coverage/out":"/dev/stdout")}'
+      unbuffer pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/ | awk '{print >>(/^TOTAL/?"coverage/out":"/dev/stdout")}'
   artifacts:
     expire_in: 31d
     paths:
