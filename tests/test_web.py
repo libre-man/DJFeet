@@ -20,6 +20,11 @@ from dj_feet.pickers import Picker
 
 
 @pytest.fixture
+def my_flask():
+    yield web.MyFlask(__name__)
+
+
+@pytest.fixture
 def app(monkeypatch):
     monkeypatch.setattr(web, 'im_alive', lambda: None)
     with web.app.app_context():
@@ -79,6 +84,19 @@ def test_setup(monkeypatch):
     assert 'MyPicker' in data['options']['Picker']
     assert 'param1' in data['options']['Picker']['MyPicker']['parts']
     assert data['options']['Picker']['MyPicker']['parts']['param1']['required']
+
+
+@pytest.mark.parametrize("func", [
+    lambda x: x.started, lambda x: x.queue, lambda x: x.worker,
+    lambda x: setattr(x, 'started', True)
+])
+def test_my_flask_getters_and_setters(monkeypatch, func, my_flask):
+    mock_setup = MockingFunction()
+    monkeypatch.setattr(my_flask, 'setup', mock_setup)
+
+    func(my_flask)
+
+    assert mock_setup.called
 
 
 @pytest.mark.parametrize("data", [({
@@ -182,3 +200,23 @@ def test_start_music_in_full(monkeypatch, app_client, data):
     assert mocked_queue_put.called
     assert mocked_queue_put.args[0][0][0] is None
     assert mocked_queue_get_nowait.called
+
+
+def test_backend_worker(monkeypatch):
+    mocked_loop = MockingFunction()
+    monkeypatch.setattr(core, 'loop', mocked_loop)
+
+    worker_queue = queue.Queue()
+
+    start_loop_arg = random.random()
+    my_host = str(random.random()) + 'loc'
+    my_id = random.randint(0, 1000)
+
+    worker_queue.put((web.PROCESS_SONG, None))
+    worker_queue.put((web.START_LOOP, start_loop_arg))
+    worker_queue.put((web.STOP, ))
+
+    web.backend_worker(worker_queue, my_host, my_id)
+
+    assert mocked_loop.called
+    assert mocked_loop.args[0][0] == (my_host, my_id, start_loop_arg)

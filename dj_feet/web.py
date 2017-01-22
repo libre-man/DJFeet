@@ -20,7 +20,9 @@ class MyFlask(Flask):
     def setup(self):
         self._started = False
         self._queue = mp.Queue(128)
-        self._worker = mp.Process(target=backend_worker, args=(self._queue, ))
+        self._worker = mp.Process(
+            target=backend_worker,
+            args=(self._queue, app.config['REMOTE'], app.config['ID']))
         self._worker.start()
 
     @property
@@ -53,14 +55,14 @@ app = MyFlask(__name__)
 STOP, PROCESS_SONG, START_LOOP = range(3)
 
 
-def backend_worker(queue):
+def backend_worker(worker_queue, remote, app_id):
     while True:
-        out = queue.get()
+        out = worker_queue.get()
         task, *args = out
         if task == PROCESS_SONG:
             pass
         elif task == START_LOOP:
-            core.loop(app.config['REMOTE'], app.config['ID'], *args)
+            core.loop(remote, app_id, *args)
         elif task == STOP:
             return
 
