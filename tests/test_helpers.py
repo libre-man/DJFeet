@@ -83,7 +83,7 @@ def test_get_all_subclasses(baseclass, expected):
          "An_int": ("int", "me is normal for me")
      }, "Return a nice int\nright"),
     ("", "This is a long description\nwith\nnewlines", "", {
-        "this_is_a_value": ("another_type", "Wow what a nice value!\nWow"),
+        "this_is_a_value": ("another_type", "Wow what a nice value!\n    Wow"),
         "An_int": ("int", "me is normal for me")
     }, "Return a nice int\nright"),
     ("", "This is a long description\nwith\nnewlines\n\n", "", {},
@@ -92,6 +92,9 @@ def test_get_all_subclasses(baseclass, expected):
      ":rtype: int\n     :type priority:BLAA", {
          "int": ("a nice integer", "5")
      }, "Return a nice int\nright"),
+    ("", "This is a long description", "", {
+        "int": ("", "A multiline\n      String")
+    }, "Return a nice int\nright"),
 ])
 def test_parse_docstring(desc_short, desc_long, params, returns, removed):
     string = desc_short + "\n\n" + desc_long + "\n\n" + removed + "\n\n"
@@ -101,7 +104,8 @@ def test_parse_docstring(desc_short, desc_long, params, returns, removed):
     res = helpers.parse_docstring(string)
     for key, val in params.items():
         assert key in res['params']
-        assert res['params'][key] == val[1]
+        assert res['params'][key] == " ".join((line.strip()
+                                               for line in val[1].split('\n')))
     assert res['returns'] == returns
     assert res['short'] == desc_short.strip()
     assert res['long'] == desc_long.strip()

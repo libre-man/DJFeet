@@ -42,7 +42,8 @@ def parse_docstring(docstring):
 
             if params_returns_desc:
                 params = {
-                    name.strip(): doc.strip()
+                    name.strip(): " ".join(
+                        (line.strip() for line in doc.split("\n"))).strip()
                     for name, doc in PARAM_REGEX.findall(params_returns_desc)
                 }
 
@@ -52,8 +53,9 @@ def parse_docstring(docstring):
 
     return {
         "short": short_description,
-        "long": "\n".join(line for line in long_description.split("\n")
-                          if not line.strip().startswith(":")).rstrip(),
+        "long": "\n".join(
+            line for line in long_description.split("\n")
+            if not line.strip().startswith(":")).rstrip(),
         "params": params,
         "returns": returns
     }
