@@ -7,7 +7,7 @@ ADD ./docker_ssh /home/dj_feet/
 ADD ./docker_ssh.pub /home/dj_feet/
 
 RUN apt-get -y update && \
-    apt-get install -y git python3-pip python3-numpy openssh-client
+    apt-get install -y git python3-pip python3-numpy openssh-client libav-tools
 
 RUN eval $(ssh-agent -s) && \
     ssh-add /home/dj_feet/docker_ssh && \
@@ -22,8 +22,7 @@ RUN cd /home/dj_feet/DJFeet && \
     pip3 install gunicorn
 
 RUN cd /home/dj_feet/DJFeet && \
+    git pull && \
     python3 setup.py install
 
-RUN apt-get install -y libav-tools
-
-CMD cd /home/dj_feet/DJFeet && gunicorn -w 1 dj_feet.wsgi:app
+CMD cd /home/dj_feet/DJFeet && gunicorn -w 1 -b unix:"$SDAAS_SOCKET" dj_feet.wsgi:app
