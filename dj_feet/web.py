@@ -113,7 +113,7 @@ def start_music():
 def im_alive():
     requests.post(
         app.config['REMOTE'] + "/im_alive",
-        data={
+        json={
             'id': app.config['ID'],
             'options': Config.get_all_options(),
         })
