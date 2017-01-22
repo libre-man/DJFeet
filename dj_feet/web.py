@@ -1,5 +1,5 @@
 import multiprocessing as mp
-from flask import Flask, request, g, jsonify
+from flask import Flask, request, jsonify
 from functools import wraps
 import queue
 import requests
@@ -7,8 +7,50 @@ import requests
 import dj_feet.core as core
 from .config import Config
 
-app = Flask(__name__)
-STOP, PROCESS_SONG, START_LOOP = range(3)
+
+class MyFlask(Flask):
+    def __init__(self, name):
+        super(MyFlask, self).__init__(name)
+        self._started = self._queue = self._worker = None
+        self.reset()
+
+    def reset(self):
+        self._started = self._queue = self._worker = None
+
+    def setup(self):
+        self._started = False
+        self._queue = mp.Queue(128)
+        self._worker = mp.Process(target=backend_worker, args=(self._queue, ))
+        self._worker.start()
+
+    @property
+    def started(self):
+        if self._started is None:
+            self.setup()
+        else:
+            return self._started
+
+    @started.setter
+    def started(self, value):
+        if self._started is None:
+            self.setup()
+        self._started = value
+
+    @property
+    def queue(self):
+        if self._queue is None:
+            self.setup()
+        return self._queue
+
+    @property
+    def worker(self):
+        if self._worker is None:
+            self.setup()
+        return self._worker
+
+
+app = MyFlask(__name__)
+STOP, PROCESS_SONG, START_LOOP, NOOP = range(4)
 
 
 def backend_worker(queue):
@@ -17,6 +59,8 @@ def backend_worker(queue):
         if out is None:
             continue
         task, *args = out
+        if task == NOOP:
+            print('NOOP')
         if task == PROCESS_SONG:
             pass
         elif task == START_LOOP:
@@ -28,7 +72,7 @@ def backend_worker(queue):
 def not_started(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'started' in g and g.started:
+        if app.started:
             return jsonify(ok=False), 410  # HTTP 410 gone
         else:
             return f(*args, **kwargs)
@@ -57,12 +101,12 @@ def start_music():
         config.get_transitioner(), config.get_communicator()
     ]
     try:
-        queue_item = g.queue.get_nowait()
-        g.queue.put(queue_item)
+        queue_item = app.queue.get_nowait()
+        app.queue.put(queue_item)
         return jsonify(ok=False)
     except queue.Empty:
-        g.queue.put((START_LOOP, args))
-        g.started = True
+        app.queue.put((START_LOOP, args))
+        app.started = True
         return jsonify(ok=True)
 
 
@@ -76,18 +120,14 @@ def im_alive():
 
 
 def start(id_string, input_dir, output_dir, remote_addr):
-    app_id = int(id_string)
     app.config.update({
-        'ID': app_id,
+        'ID': int(id_string),
         'INPUT_DIR': input_dir,
         'OUTPUT_DIR': output_dir,
         'REMOTE': remote_addr,
     })
-    g.started = False
-    q = mp.Queue(128)
-    g.worker = mp.Process(target=backend_worker, args=(q, ))
-    g.queue = q
-    g.worker.start()
+    app.reset()
+    app.setup()
     im_alive()
     return app
 

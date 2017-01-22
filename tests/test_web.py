@@ -6,7 +6,6 @@ import sys
 import json
 import queue
 import multiprocessing as mp
-from flask import g
 from configparser import ConfigParser
 from helpers import MockingFunction
 
@@ -26,7 +25,7 @@ def app(monkeypatch):
         yield web.start("1024", "/tmp/sdaas_input/", "/tmp/sdaas_output",
                         "localhost")
 
-        stop_worker(g.queue, g.worker)
+        stop_worker(web.app.queue, web.app.worker)
 
 
 @pytest.fixture
@@ -63,7 +62,7 @@ def test_setup(monkeypatch):
 
     with web.app.app_context():
         web.start(str(my_id), "/in", "/out", my_addr)
-        stop_worker(g.queue, g.worker)
+        stop_worker(web.app.queue, web.app.worker)
         assert web.app.config['INPUT_DIR'] == '/in'
         assert web.app.config['OUTPUT_DIR'] == '/out'
 
