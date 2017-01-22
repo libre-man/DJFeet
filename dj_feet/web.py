@@ -50,7 +50,7 @@ class MyFlask(Flask):
 
 
 app = MyFlask(__name__)
-STOP, PROCESS_SONG, START_LOOP = range(4)
+STOP, PROCESS_SONG, START_LOOP = range(3)
 
 
 def backend_worker(queue):
