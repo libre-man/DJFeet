@@ -8,6 +8,7 @@ import queue
 import multiprocessing as mp
 from configparser import ConfigParser
 from helpers import MockingFunction
+from flask import Flask
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
@@ -22,8 +23,11 @@ from dj_feet.pickers import Picker
 def app(monkeypatch):
     monkeypatch.setattr(web, 'im_alive', lambda: None)
     with web.app.app_context():
-        yield web.start("1024", "/tmp/sdaas_input/", "/tmp/sdaas_output",
-                        "localhost")
+        my_app = web.start("1024", "/tmp/sdaas_input/", "/tmp/sdaas_output",
+                           "localhost")
+        assert isinstance(my_app, Flask)
+        assert isinstance(my_app, web.MyFlask)
+        yield my_app
 
         stop_worker(web.app.queue, web.app.worker)
 
@@ -70,7 +74,7 @@ def test_setup(monkeypatch):
     assert len(my_post_request.args[0][0]) == 1
     assert my_post_request.args[0][0][0] == my_addr + '/im_alive'
 
-    data = my_post_request.args[0][1]['data']
+    data = my_post_request.args[0][1]['json']
     assert data['id'] == my_id
     assert 'MyPicker' in data['options']['Picker']
     assert 'param1' in data['options']['Picker']['MyPicker']['parts']
