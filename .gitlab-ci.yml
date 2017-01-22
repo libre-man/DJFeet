@@ -2,7 +2,7 @@ image: python:3.5
 
 before_script:
   - apt update -qy
-  - apt-get install expect
+  - apt-get install -y expect
   - pip install --upgrade pip
   - make setup
   - make test_setup
