@@ -22,7 +22,6 @@ RUN cd /home/dj_feet/DJFeet && \
     pip3 install gunicorn
 
 RUN cd /home/dj_feet/DJFeet && \
-    git pull && \
     python3 setup.py install
 
 CMD cd /home/dj_feet/DJFeet && gunicorn -w 1 -b unix:"$SDAAS_SOCKET" dj_feet.wsgi:app

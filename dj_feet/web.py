@@ -50,17 +50,13 @@ class MyFlask(Flask):
 
 
 app = MyFlask(__name__)
-STOP, PROCESS_SONG, START_LOOP, NOOP = range(4)
+STOP, PROCESS_SONG, START_LOOP = range(4)
 
 
 def backend_worker(queue):
     while True:
         out = queue.get()
-        if out is None:
-            continue
         task, *args = out
-        if task == NOOP:
-            print('NOOP')
         if task == PROCESS_SONG:
             pass
         elif task == START_LOOP:
