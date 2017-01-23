@@ -16,9 +16,22 @@ class Config():
 
     def __init__(self):
         self.user_config = {cls.__name__: dict() for cls in self.BASECLASSES}
+        self.user_config['main'] = dict()
         self.set_default_options()
 
     def set_default_options(self):
+        """Set the default options of all subclasses as the only config.
+
+        This overrides any special config that was present in the
+        `self.user_config` variable. The main section of `self.user_config` is
+        the only key that is preserved.
+
+        :returns: Nothing of value.
+        """
+        main_cfg = self.user_config['main']
+        self.user_config = {cls.__name__: dict() for cls in self.BASECLASSES}
+        self.user_config['main'] = main_cfg
+
         for basecls in self.BASECLASSES:
             for cls in helpers.get_all_subclasses(basecls):
                 if cls.__name__ not in self.user_config[basecls.__name__]:
@@ -32,6 +45,56 @@ class Config():
                 for arg, val in zip(
                         get_args(cls.__init__)[-len(defaults):], defaults):
                     self.user_config[basecls.__name__][cls.__name__][arg] = val
+
+    def update_config_main_options(self, vals):
+        """Set the main options.
+
+        This means setting the used classes for every class `BASECLASSES`.
+
+        :param vals: The dictionary of the mapping baseclass: subclass
+        :type vals: dict(str, str)
+        :raises ValueError: If the key you want to set is present in
+                            `self.FIXED_OPTIONS` or if the value is not a
+                            subclass of the provided key according to
+                            `helpers.get_all_subclasses`.
+        :returns: Nothing of value
+        """
+        for key, value in vals.items():
+            if key in self.FIXED_OPTIONS:
+                raise ValueError("This item cannot be set!")
+            for basecls in self.BASECLASSES:
+                if basecls.__name__ != key:
+                    continue
+                for subcls in helpers.get_all_subclasses(basecls):
+                    if subcls.__name__ == value:
+                        self.user_config['main'][key] = value
+                        break
+                else:
+                    continue
+                break  # if we did break break out of this loop as well.
+            else:
+                raise ValueError("Wrong value encountered!")
+
+    def update_config_class_options(self, basecls, subcls, vals):
+        """Update the given parameter config values for the given subcls.
+
+        This is done by overriding any value already present in the config for
+        this `basecls` and `subcls` mapping. Fixed values are not overridden.
+
+        :param str basecls: The baseclass to update, it should be in
+                            `Config.BASECLASSES`.
+        :param str subcls: The implementation of `basecls` to update the values
+                           for.
+        :param vals: The values that should be mapped option: value to pass.
+        :type vals: dict(str, any)
+        :raises ValueError: If the key of a val in `vals` is present in
+                            `self.FIXED_OPTIONS`.
+        :returns: Nothing of value.
+        """
+        for key, val in vals.items():
+            if key in self.FIXED_OPTIONS:
+                raise ValueError("This value cannot be set!")
+            self.user_config[basecls][subcls][key] = val
 
     @staticmethod
     def get_all_options(baseclasses=None):

@@ -1,6 +1,7 @@
 import pytest
 import os
 import sys
+import random
 from configparser import ConfigParser
 from helpers import MockingFunction
 
@@ -444,6 +445,57 @@ def test_parse_default_args(monkeypatch, amount):
             for part, val in assertions['parts'].items():
                 assert (part in items) != val['required']
                 if part in items:
-                    del items[part]
+                    if random.random() > 0.5:
+                        del items[part]
+                    else:
+                        items[part] = random.random()
 
         cfg.set_default_options()
+
+
+def test_set_class_options(config):
+    my_val = random.randint(100000, 10000000)
+
+    def find_keys():
+        for basecls, subclases in config.user_config.items():
+            for subcls, values in subclases.items():
+                for key in values.keys():
+                    if key in config.FIXED_OPTIONS:
+                        continue
+                    return basecls, subcls, key
+        assert False
+
+    outercls, innercls, set_key = find_keys()
+
+    config.update_config_class_options(outercls, innercls, {set_key: my_val})
+
+    assert config.user_config[outercls][innercls][set_key] == my_val
+
+    with pytest.raises(ValueError):
+        config.update_config_class_options(outercls, innercls,
+                                           {'song_folder': my_val})
+
+
+def test_set_main_option(config, monkeypatch):
+    class MyName():
+        def __init__(self, num):
+            self.__name__ = str(num)
+
+    my_picker = str(random.randint(100000, 10000000))
+    my_picker2 = str(random.randint(0, 100000 - 1))
+
+    mocked_get_all_subclasses = MockingFunction(
+        lambda: map(MyName, [0, my_picker2, my_picker]), simple=True)
+    monkeypatch.setattr(helpers, 'get_all_subclasses',
+                        mocked_get_all_subclasses)
+
+    config.update_config_main_options({"Picker": my_picker})
+    assert config.user_config['main']['Picker'] == my_picker
+
+    config.update_config_main_options({"Picker": my_picker2})
+    assert config.user_config['main']['Picker'] == my_picker2
+
+    with pytest.raises(ValueError):
+        config.update_config_main_options({"Picker": my_picker * 2})
+    with pytest.raises(ValueError):
+        config.update_config_main_options({"song_folder": my_picker})
