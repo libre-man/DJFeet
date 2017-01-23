@@ -80,7 +80,10 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                 requests.post(
                     remote + '/music_processed/', json={'id': file_id})
             elif task == START_LOOP:
-                core.loop(remote, app_id, *args)
+                core.loop(remote, app_id,
+                          cfg.get_controller(),
+                          cfg.get_picker(),
+                          cfg.get_transitioner(), cfg.get_communicator())
             elif task == OPTIONS:
                 new_options, *args = args
                 for basecls, vals in new_options.items():
@@ -126,29 +129,12 @@ def set_config():
 @not_started
 @needs_options
 def start_music():
-    config_dict = {
-        "main": {},
-        "Transitioner": {},
-        "Picker": {},
-        "Controller": {},
-        "Communicator": {}
-    }
-    for key, val in request.json.items():
-        name = val['name']
-        config_dict['main'][key] = name
-        config_dict[name] = val['options'].copy()
-    config = Config()
-    config.user_config = config_dict
-    args = [
-        config.get_controller(), config.get_picker(),
-        config.get_transitioner(), config.get_communicator()
-    ]
     try:
         queue_item = app.queue.get_nowait()
         app.queue.put(queue_item)
         return jsonify(ok=False)
     except queue.Empty:
-        app.queue.put((START_LOOP, args))
+        app.queue.put((START_LOOP, ))
         app.started = True
         return jsonify(ok=True)
 

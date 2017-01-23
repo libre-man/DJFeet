@@ -65,15 +65,23 @@ class DefaultsMixingClass:
         pass
 
 
+class WithFixedClass:
+    def __init__(self, song_folder, b):
+        pass
+
+
 @pytest.mark.parametrize("config_dict,cls,clsname,expected", [
     ({
         'a': 1,
         'b': 2
     }, NoInitClass, NoInitClass.__name__, {}),
     ({
-        'a': 1,
+        'song_folder': 'Wowsers I will override!',
         'b': 2
-    }, NoArgsClass, NoArgsClass.__name__, {}),
+    }, WithFixedClass, WithFixedClass.__name__, {
+        'song_folder': Config.FIXED_OPTIONS['song_folder'],
+        'b': 2
+    }),
     ({}, OnlyDefaultsClass, OnlyDefaultsClass.__name__, {}),
     ({}, TwoArgsClass, TwoArgsClass.__name__, KeyError),
     ({

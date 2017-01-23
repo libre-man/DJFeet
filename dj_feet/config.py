@@ -11,8 +11,11 @@ class Config():
     """The main class for the config. This stores program config and the user
     config.
     """
-    FIXED_OPTIONS = {'song_folder': None, 'cache_dir': None, 'output_folder':
-                     None}
+    FIXED_OPTIONS = {
+        'song_folder': None,
+        'cache_dir': None,
+        'output_folder': None
+    }
     BASECLASSES = [Picker, Controller, Transitioner, Communicator]
 
     def __init__(self):
@@ -142,20 +145,30 @@ class Config():
         required argument cannot be found this raises a LookupError.
         """
         kwargs = dict()
+
         for key, val in self.user_config[config_key].items():
             try:
                 if key in get_args(cls.__init__) and key != 'self':
                     kwargs[key] = val
             except AttributeError:
                 return {}
+
         defaults = cls.__init__.__defaults__
-        default_amount = None
+        default_amount = None  # Yes None is actually correct here...
         if isinstance(defaults, tuple):
             default_amount = -len(defaults)
+
+        for key in get_args(cls.__init__):
+            if key in self.FIXED_OPTIONS:
+                kwargs[key] = self.FIXED_OPTIONS[key]
+
         for key in get_args(cls.__init__)[:default_amount]:
+            if key in self.FIXED_OPTIONS:
+                continue
             if key not in kwargs and key != 'self':
                 raise KeyError(
                     "Key {} not found in config but is required".format(key))
+
         return kwargs
 
     def _get_class_instance(self, basecls, cls_name):

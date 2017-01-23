@@ -120,26 +120,14 @@ def test_start_music(monkeypatch, app_client, data):
     monkeypatch.setattr(mp.queues.Queue, 'put', mocked_queue_put)
 
     try:
-        mocked_get_controller = MockingFunction(lambda: 'Controller')
-        mocked_get_picker = MockingFunction(lambda: 'Picker')
-        mocked_get_transitioner = MockingFunction(lambda: 'Transitioner')
-        mocked_get_communicator = MockingFunction(lambda: 'Communicator')
-        monkeypatch.setattr(config.Config, 'get_controller',
-                            mocked_get_controller)
-        monkeypatch.setattr(config.Config, 'get_picker', mocked_get_picker)
-        monkeypatch.setattr(config.Config, 'get_transitioner',
-                            mocked_get_transitioner)
-        monkeypatch.setattr(config.Config, 'get_communicator',
-                            mocked_get_communicator)
-
         response = app_client.post(
-            '/start/', data=json.dumps(data), content_type='application/json')
+            '/start/', data=json.dumps({}), content_type='application/json')
         other_res = []
         for _ in range(10):
             other_res.append(
                 app_client.post(
                     '/start/',
-                    data=json.dumps(data),
+                    data=json.dumps({}),
                     content_type='application/json'))
     except Exception as exp:
         raise exp
@@ -153,18 +141,7 @@ def test_start_music(monkeypatch, app_client, data):
         assert not json.loads(res.get_data(as_text=True))['ok']
 
     assert mocked_queue_put.called
-    assert mocked_queue_put.args[0][0][0][0] == web.START_LOOP
-    assert mocked_queue_put.args[0][0][0][1] == [
-        'Controller',
-        'Picker',
-        'Transitioner',
-        'Communicator',
-    ]
-
-    assert mocked_get_controller.called
-    assert mocked_get_picker.called
-    assert mocked_get_transitioner.called
-    assert mocked_get_communicator.called
+    assert mocked_queue_put.args[0][0][0] == (web.START_LOOP, )
 
 
 @pytest.mark.parametrize("data", [({
@@ -180,20 +157,8 @@ def test_start_music_in_full(monkeypatch, app_client, data):
     monkeypatch.setattr(mp.queues.Queue, 'get_nowait', mocked_queue_get_nowait)
 
     try:
-        mocked_get_controller = MockingFunction(lambda: 'Controller')
-        mocked_get_picker = MockingFunction(lambda: 'Picker')
-        mocked_get_transitioner = MockingFunction(lambda: 'Transitioner')
-        mocked_get_communicator = MockingFunction(lambda: 'Communicator')
-        monkeypatch.setattr(config.Config, 'get_controller',
-                            mocked_get_controller)
-        monkeypatch.setattr(config.Config, 'get_picker', mocked_get_picker)
-        monkeypatch.setattr(config.Config, 'get_transitioner',
-                            mocked_get_transitioner)
-        monkeypatch.setattr(config.Config, 'get_communicator',
-                            mocked_get_communicator)
-
         response = app_client.post(
-            '/start/', data=json.dumps(data), content_type='application/json')
+            '/start/', data=json.dumps({}), content_type='application/json')
     except Exception as exp:
         raise exp
     finally:
@@ -203,10 +168,6 @@ def test_start_music_in_full(monkeypatch, app_client, data):
     data = json.loads(response.get_data(as_text=True))
     assert not data['ok']
 
-    assert mocked_get_controller.called
-    assert mocked_get_picker.called
-    assert mocked_get_transitioner.called
-    assert mocked_get_communicator.called
     assert mocked_queue_put.called
     assert mocked_queue_put.args[0][0][0] is None
     assert mocked_queue_get_nowait.called
@@ -256,6 +217,17 @@ def test_backend_worker(monkeypatch):
             self.args.append((filename, format))
             self.called = True
 
+    mocked_get_controller = MockingFunction(lambda: 'Controller')
+    mocked_get_picker = MockingFunction(lambda: 'Picker')
+    mocked_get_transitioner = MockingFunction(lambda: 'Transitioner')
+    mocked_get_communicator = MockingFunction(lambda: 'Communicator')
+    monkeypatch.setattr(config.Config, 'get_controller', mocked_get_controller)
+    monkeypatch.setattr(config.Config, 'get_picker', mocked_get_picker)
+    monkeypatch.setattr(config.Config, 'get_transitioner',
+                        mocked_get_transitioner)
+    monkeypatch.setattr(config.Config, 'get_communicator',
+                        mocked_get_communicator)
+
     mocked_loop = MockingFunction()
     monkeypatch.setattr(core, 'loop', mocked_loop)
     my_segment = MyAudioSegement()
@@ -266,10 +238,6 @@ def test_backend_worker(monkeypatch):
 
     mocked_config_mupdate = MockingFunction()
     mocked_config_cupdate = MockingFunction()
-
-    # cfg.update_config_class_options(basecls, vals['name'],
-    #                                 vals['options'])
-    # cfg.update_config_main_options({basecls: vals['name']})
     monkeypatch.setattr(config.Config, 'update_config_class_options',
                         mocked_config_cupdate)
     monkeypatch.setattr(config.Config, 'update_config_main_options',
@@ -297,7 +265,8 @@ def test_backend_worker(monkeypatch):
     web.backend_worker(worker_queue, my_host, my_id, '/output')
 
     assert mocked_loop.called
-    assert mocked_loop.args[0][0] == (my_host, my_id, start_loop_arg)
+    assert mocked_loop.args[0][0] == (my_host, my_id, 'Controller', 'Picker',
+                                      'Transitioner', 'Communicator')
     assert mocked_from_mp3.called
 
     assert my_segment.called
