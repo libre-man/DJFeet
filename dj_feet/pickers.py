@@ -43,6 +43,29 @@ class Picker:
         """
         raise NotImplementedError("This should be overridden")
 
+    @staticmethod
+    def process_song_file(song_file):
+        """Process the given music file.
+
+        If you give this method any variables these need to have the same name
+        as in your `__init__` method, where they also have to occur! These
+        variables will be marked as needs_reload. They can have default values.
+
+        Please note that this is a static methode. Therefore this method can
+        and should have side effects as you have no access to the `self`
+        variable.
+
+
+        :param song_file: This variable will always be given and should not be
+                          a variable in your `__init__` method. This is the
+                          current file to process. Please note that it is not
+                          guaranteed that this song will also be in the final
+                          directory to play.
+        :type song_file: string
+        :returns: This does not matter as it will not be used by the framework.
+        """
+        raise NotImplementedError("This should be overridden")
+
 
 class SimplePicker(Picker):
     """A simple picker that chooses songs by random.
@@ -51,6 +74,7 @@ class SimplePicker(Picker):
     transitioning of songs. This picker will always pick a new random song and
     will never pick the same song twice.
     """
+
     def __init__(self, song_folder):
         """Initialize the the `SimplePicker` object.
 
@@ -83,6 +107,19 @@ class SimplePicker(Picker):
             next_song = random.choice(self.song_files)
             self.song_files.remove(next_song)
         return Song(next_song)
+
+    @staticmethod
+    def process_song_file(song_file):
+        """This does nothing however it is required.
+
+        We don't need to process music, as we are not using any characteristics
+        of music.
+
+        :param song_file: The path to the wav to be processed.
+        :type song_file: string
+        :rtype: None
+        """
+        return None
 
 
 class NCAPicker(Picker):
@@ -162,6 +199,30 @@ class NCAPicker(Picker):
         self.multiplier = current_multiplier
         self.streak = 0
 
+    @staticmethod
+    def process_song_file(mfcc_amount, cache_dir, song_file):
+        """Process the given `song_file`.
+
+        This is done by calculating its `mfcc` and its tempo and storing this
+        information in the given cache_dir.
+
+        :param song_file: The wav file of the song to process.
+        :type song_file: string
+        :param mfcc_amount: The amount of mfcc's to calculate.
+        :type mfcc_amount: int
+        :param cache_dir: The directory to save the cached properties in.
+        :type cache_dir: string
+        :return: A tuple of the mfcc and tempo in this order.
+        :rtype: tuple
+        """
+        mfcc, tempo = NCAPicker.get_mfcc_and_tempo(song_file, mfcc_amount)
+        cache_file = os.path.join(cache_dir, song_file)
+        numpy.save(cache_file + "_mfcc", mfcc)
+        numpy.save(cache_file + "_tempo", tempo)
+        with open(cache_file + "_tempo", "w+"):
+            pass
+        return mfcc, tempo
+
     def calculate_songs_characteristics(self, mfcc_amount, cache_dir):
         """Calculate the songs characteristics.
 
@@ -194,13 +255,13 @@ class NCAPicker(Picker):
                     os.path.join(cache_dir, filename + "_tempo") + os.extsep +
                     'npy')
             else:
-                mfcc, tempo = self.get_mfcc_and_tempo(song_file, mfcc_amount)
                 if cache_dir:
-                    cache_file = os.path.join(cache_dir, filename)
-                    numpy.save(cache_file + "_mfcc", mfcc)
-                    numpy.save(cache_file + "_tempo", tempo)
-                    with open(cache_file + "_tempo", "w+"):
-                        pass
+                    mfcc, tempo = self.process_song_file(mfcc_amount,
+                                                         cache_dir, filename)
+                else:
+                    mfcc, tempo = self.get_mfcc_and_tempo(song_file,
+                                                          mfcc_amount)
+
             mfccs[song_file] = mfcc
             tempos[song_file] = tempo
             average += mfcc.mean(1)
