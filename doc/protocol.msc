@@ -40,7 +40,7 @@ opt Setup
         opt Add Music
             u->+s: Add music file in control panel
             s->u: Update music overview to pending
-            s->+c: POST: /add_music/, {file_location: string}
+            s->+c: POST: /add_music/, {file_location: string, id: integer}
             c->-s: {ok: bool}
             c->s: POST: /music_processed/, {id: integer}
             s->-u: Update music overview
