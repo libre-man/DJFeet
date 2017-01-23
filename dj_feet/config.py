@@ -11,7 +11,8 @@ class Config():
     """The main class for the config. This stores program config and the user
     config.
     """
-    FIXED_OPTIONS = ['song_folder', 'cache_dir']
+    FIXED_OPTIONS = {'song_folder': None, 'cache_dir': None, 'output_folder':
+                     None}
     BASECLASSES = [Picker, Controller, Transitioner, Communicator]
 
     def __init__(self):

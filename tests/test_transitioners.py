@@ -68,12 +68,16 @@ def test_write_sample(inf_jukebox_transitioner, _, random_song_file,
 
     time_series, sr = librosa.load(random_song_file)
     inf_jukebox_transitioner.write_sample(time_series)
-    pprint(inf_jukebox_transitioner.output)
+    pprint(inf_jukebox_transitioner.output_folder)
+
     assert mocking_librosa.called
     assert len(mocking_librosa.args) == 1
+
     a = mocking_librosa.args[0][0][1] == time_series
+
     assert hasattr(a, '__iter__') and a.all()
-    assert mocking_librosa.args[0][0][0] == inf_jukebox_transitioner.output
+    assert mocking_librosa.args[0][0][
+        0] == inf_jukebox_transitioner.output_folder
     assert mocking_librosa.args[0][1]['sr'] == sr
 
 

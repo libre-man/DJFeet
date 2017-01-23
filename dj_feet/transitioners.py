@@ -26,8 +26,8 @@ class Transitioner:
 
 
 class InfJukeboxTransitioner(Transitioner):
-    def __init__(self, output, segment_size=30):
-        self.output = output
+    def __init__(self, output_folder, segment_size=30):
+        self.output_folder = output_folder
         self.segment_size = segment_size
         self.segment_delta = datetime.timedelta(seconds=segment_size)
         first = False
@@ -139,4 +139,5 @@ class InfJukeboxTransitioner(Transitioner):
         return final_seg
 
     def write_sample(self, sample):
-        librosa.output.write_wav(self.output, sample, sr=22050, norm=False)
+        librosa.output.write_wav(
+            self.output_folder, sample, sr=22050, norm=False)
