@@ -39,8 +39,17 @@ def app(monkeypatch):
 
 
 @pytest.fixture
-def app_client(app):
+def incomplete_app_client(app):
     yield app.test_client()
+
+
+@pytest.fixture
+def app_client(incomplete_app_client):
+    res = incomplete_app_client.post(
+        '/set_options/', data=json.dumps({}), content_type='application/json')
+    assert res.status_code == 200
+    assert json.loads(res.get_data(as_text=True))['ok']
+    yield incomplete_app_client
 
 
 def stop_worker(q, w):
@@ -216,16 +225,18 @@ def test_add_music(monkeypatch, app_client, throw):
 
     try:
         my_file_loc = str(random.random()) + 'location/'
+        song_id = random.randint(10, 1000)
         res = app_client.post(
             '/add_music/',
             content_type='application/json',
             data=json.dumps({
-                'file_location': my_file_loc
+                'file_location': my_file_loc,
+                'id': song_id,
             }))
 
         assert mocked_queue_put.called
-        assert mocked_queue_put.args[0][0][0] == (web.PROCESS_SONG, my_file_loc
-                                                  )
+        assert mocked_queue_put.args[0][0][0] == (web.PROCESS_SONG,
+                                                  my_file_loc, song_id)
 
         assert json.loads(res.get_data(as_text=True))['ok'] != throw
         assert res.status_code == 200
@@ -250,23 +261,76 @@ def test_backend_worker(monkeypatch):
     my_segment = MyAudioSegement()
     mocked_from_mp3 = MockingFunction(lambda: my_segment, simple=True)
     monkeypatch.setattr(pydub.AudioSegment, 'from_mp3', mocked_from_mp3)
+    mocked_post = MockingFunction()
+    monkeypatch.setattr(requests, 'post', mocked_post)
+
+    mocked_config_mupdate = MockingFunction()
+    mocked_config_cupdate = MockingFunction()
+
+    # cfg.update_config_class_options(basecls, vals['name'],
+    #                                 vals['options'])
+    # cfg.update_config_main_options({basecls: vals['name']})
+    monkeypatch.setattr(config.Config, 'update_config_class_options',
+                        mocked_config_cupdate)
+    monkeypatch.setattr(config.Config, 'update_config_main_options',
+                        mocked_config_mupdate)
 
     worker_queue = queue.Queue()
 
     start_loop_arg = random.random()
     my_host = str(random.random()) + 'loc'
     my_id = random.randint(0, 1000)
+    song_id = random.randint(1000, 10000)
 
-    worker_queue.put((web.PROCESS_SONG, '/filename/my_song.mp3'))
+    worker_queue.put((web.PROCESS_SONG, '/filename/my_song.mp3', song_id))
     worker_queue.put((web.START_LOOP, start_loop_arg))
+    worker_queue.put((web.OPTIONS, {
+        'Picker': {
+            'name': 'MyPicker',
+            'options': {
+                'a': None
+            }
+        }
+    }))
     worker_queue.put((web.STOP, ))
 
-    web.backend_worker(worker_queue, my_host, my_id)
+    web.backend_worker(worker_queue, my_host, my_id, '/output')
 
     assert mocked_loop.called
     assert mocked_loop.args[0][0] == (my_host, my_id, start_loop_arg)
     assert mocked_from_mp3.called
+
     assert my_segment.called
     assert my_segment.args[0][0].startswith('/tmp/')
     assert my_segment.args[0][0].endswith('/my_song.wav')
     assert my_segment.args[0][1] == 'wav'
+
+    assert mocked_config_cupdate.called
+    assert mocked_config_mupdate.called
+    assert mocked_config_cupdate.args[0][0] == ('Picker', 'MyPicker', {
+        'a': None
+    })
+    assert mocked_config_mupdate.args[0][0] == ({'Picker': 'MyPicker'}, )
+
+    assert mocked_post.called
+    assert mocked_post.args[0][0][0] == my_host + '/music_processed/'
+    assert mocked_post.args[0][1]['json']['id'] == song_id
+
+
+def test_setting_user_config(incomplete_app_client):
+    res = incomplete_app_client.post('/start/')
+
+    assert res.status_code == 412
+    assert not json.loads(res.get_data(as_text=True))['ok']
+
+    res = incomplete_app_client.post(
+        '/set_options/', data=json.dumps({}), content_type='application/json')
+
+    assert res.status_code == 200
+    assert json.loads(res.get_data(as_text=True))['ok']
+
+    res = incomplete_app_client.post(
+        '/set_options/', data=json.dumps({}), content_type='application/json')
+
+    assert res.status_code == 412
+    assert not json.loads(res.get_data(as_text=True))['ok']

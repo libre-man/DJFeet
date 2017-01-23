@@ -15,9 +15,11 @@ class MyFlask(Flask):
     def __init__(self, name):
         super(MyFlask, self).__init__(name)
         self._started = self._queue = self._worker = None
+        self.got_options = False
         self.reset()
 
     def reset(self):
+        self.got_options = False
         self._started = self._queue = self._worker = None
 
     def setup(self):
@@ -25,7 +27,8 @@ class MyFlask(Flask):
         self._queue = mp.Queue(128)
         self._worker = mp.Process(
             target=backend_worker,
-            args=(self._queue, app.config['REMOTE'], app.config['ID']))
+            args=(self._queue, app.config['REMOTE'], app.config['ID'],
+                  app.config['OUTPUT_DIR']))
         self._worker.start()
 
     @property
@@ -55,25 +58,48 @@ class MyFlask(Flask):
 
 
 app = MyFlask(__name__)
-STOP, PROCESS_SONG, START_LOOP = range(3)
+STOP, PROCESS_SONG, START_LOOP, OPTIONS = range(4)
 
 
-def backend_worker(worker_queue, remote, app_id):
+def backend_worker(worker_queue, remote, app_id, output_dir):
     with TemporaryDirectory() as cache_dir, TemporaryDirectory() as wav_dir:
+        cfg = Config()
+        cfg.FIXED_OPTIONS['cache_dir'] = cache_dir
+        cfg.FIXED_OPTIONS['song_folder'] = wav_dir
+        cfg.FIXED_OPTIONS['output_folder'] = output_dir
+
         while True:
             out = worker_queue.get()
             task, *args = out
             if task == PROCESS_SONG:
-                file_name, *args = args
+                file_name, file_id, *args = args
                 filename = os.path.splitext(os.path.basename(file_name))[0]
                 song = pydub.AudioSegment.from_mp3(file_name)
                 song.export(
-                    os.path.join(cache_dir, (filename + '.wav')),
-                    format='wav')
+                    os.path.join(cache_dir, (filename + '.wav')), format='wav')
+                requests.post(
+                    remote + '/music_processed/', json={'id': file_id})
             elif task == START_LOOP:
                 core.loop(remote, app_id, *args)
+            elif task == OPTIONS:
+                new_options, *args = args
+                for basecls, vals in new_options.items():
+                    cfg.update_config_class_options(basecls, vals['name'],
+                                                    vals['options'])
+                    cfg.update_config_main_options({basecls: vals['name']})
             elif task == STOP:
                 return
+
+
+def needs_options(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if app.got_options:
+            return f(*args, **kwargs)
+        else:
+            return jsonify(ok=False), 412  # HTTP 412 precondition
+
+    return decorated_function
 
 
 def not_started(f):
@@ -87,9 +113,18 @@ def not_started(f):
     return decorated_function
 
 
-@app.route('/')
+@app.route('/set_options/', methods=['POST'])
+def set_config():
+    if app.got_options:
+        return jsonify(ok=False), 412
+    app.got_options = True
+    app.queue.put((OPTIONS, request.json))
+    return jsonify(ok=True)
+
+
 @app.route('/start/', methods=['POST'])
 @not_started
+@needs_options
 def start_music():
     config_dict = {
         "main": {},
@@ -119,9 +154,12 @@ def start_music():
 
 
 @app.route('/add_music/', methods=['POST'])
+@not_started
+@needs_options
 def add_music():
     try:
-        app.queue.put_nowait((PROCESS_SONG, request.json['file_location']))
+        app.queue.put_nowait(
+            (PROCESS_SONG, request.json['file_location'], request.json['id']))
         return jsonify(ok=True)
     except queue.Full:
         return jsonify(ok=False)
@@ -147,7 +185,3 @@ def start(id_string, input_dir, output_dir, remote_addr):
     app.setup()
     im_alive()
     return app
-
-
-if __name__ == '__main__':
-    pass
