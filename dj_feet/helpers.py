@@ -99,3 +99,15 @@ def get_all_subclasses(baseclass):
             res.add(cls)
             todo.append(cls)
     return res
+
+
+def get_args(func):
+    """Get all arguments for the given function.
+
+    :param func: The function to give the arguments for.
+    :type func: callable
+    :returns: A list of all arguments for the given function.
+    :rtype: list
+    """
+    arg_amount = func.__code__.co_argcount
+    return func.__code__.co_varnames[:arg_amount]

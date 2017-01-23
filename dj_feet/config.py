@@ -1,5 +1,6 @@
 from configparser import ConfigParser
 import dj_feet.helpers as helpers
+from .helpers import get_args
 from .communicators import Communicator
 from .pickers import Picker
 from .controllers import Controller
@@ -47,10 +48,9 @@ class Config():
                 default_amount = 0
                 if isinstance(defaults, tuple):
                     default_amount = len(defaults)
-                var_amount = len(subcls.__init__.__code__.co_varnames)
+                var_amount = subcls.__init__.__code__.co_argcount
 
-                for idx, arg in enumerate(
-                        subcls.__init__.__code__.co_varnames):
+                for idx, arg in enumerate(get_args(subcls.__init__)):
                     if arg == "self":
                         continue
                     part = {
@@ -69,7 +69,7 @@ class Config():
         kwargs = dict()
         for key, val in self.user_config[config_key].items():
             try:
-                if key in cls.__init__.__code__.co_varnames and key != 'self':
+                if key in get_args(cls.__init__) and key != 'self':
                     kwargs[key] = val
             except AttributeError:
                 return {}
@@ -77,7 +77,7 @@ class Config():
         default_amount = None
         if isinstance(defaults, tuple):
             default_amount = -len(defaults)
-        for key in cls.__init__.__code__.co_varnames[:default_amount]:
+        for key in get_args(cls.__init__)[:default_amount]:
             if key not in kwargs and key != 'self':
                 raise KeyError(
                     "Key {} not found in config but is required".format(key))
