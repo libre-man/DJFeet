@@ -1,18 +1,14 @@
 #-*-mode: wsd-*-
 # This file describes the interaction between the Controller, Server and User.
 # You can render it nicely on www.websequencediagrams.com.
-
 title `Controller<->Server<->User' protocol
-
 participant Controller as c
 participant Server as s
 participant User as u
-
 note over c,s,u
     Each server has multiple controllers. A controller is used per channel while a client connects
     to a session, which has multiple channels. A server can be used to manage multiple channels.
 end note
-
 opt Startup
     note over c, s
         Create a docker giving the controller an unique integer id and the server web address.
@@ -22,7 +18,6 @@ opt Startup
     note left of c
         `options` should be contain possible option possible
         in the lifetime of this controller.
-
         Subjects are all the parts of the controller:
         [picker, transitioner, communicator, controller]
         `option` is of the type:
@@ -30,12 +25,10 @@ opt Startup
     end note
     c->s: POST: /im_alive/, {id: integer, options: {subject: {parts: {part: {part_option: option in part_options} in parts}, doc: {short: string, long: string}} in subjects}}
 end
-
 opt Setup
     note over c,s,u
         These operations can be reordered at will.
     end note
-
     opt Music management
         opt Add Music
             u->+s: Add music file in control panel
@@ -45,7 +38,6 @@ opt Setup
             c->s: POST: /music_processed/, {id: integer}
             s->-u: Update music overview
         end
-
         opt Delete Music
             u->+s: Delete music file from control panel
             s->u: Update music overview to pending
@@ -59,11 +51,16 @@ opt Setup
             s->-u: Update music overview
         end
     end
+    opt Setting configuration
+        u->+s: Set channel options in control panel
+        s->+c: POST: /set_config/, {subject: {name: string, options: {part_option: value in part_options}} in subjects}
+        c->-s: {ok: bool}
+        s->-u: Return to channel detail screen and lock options
+    end
 end
-
 opt Session Starting
     u->s: Presses start button or automatically at session.start
-    s->+c: POST: /start/, {subject: {name: string, options: {part_option: value in part_options}} in subjects}
+    s->+c: POST: /start/, {}
     c->-s: {ok: bool}
     note left of c
         Epoch is the end of the creation of the
@@ -71,7 +68,6 @@ opt Session Starting
     end note
     c->s: POST: /controller_started/: {id: integer, epoch: integer}
 end
-
 opt During Playback
     opt Feedback Handling
         u->s: POST: /log_data/, feedback
@@ -88,7 +84,6 @@ opt During Playback
         s->-c: {feedback: {user: time_left_channel for channel at $start}}
         u->s: POST: /log_data/, feedback
     end
-
     opt Iteration
         c->s: POST: /iteration/, {file_mixed: string, id: integer}
         note left of c
@@ -97,7 +92,6 @@ opt During Playback
         end note
     end
 end
-
 opt Session stopping
     u->+s: Presses stop button or automatically at session.end
     note left of s
