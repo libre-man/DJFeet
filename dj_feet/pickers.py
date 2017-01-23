@@ -216,11 +216,14 @@ class NCAPicker(Picker):
         :rtype: tuple
         """
         mfcc, tempo = NCAPicker.get_mfcc_and_tempo(song_file, mfcc_amount)
-        cache_file = os.path.join(cache_dir, song_file)
+
+        filename, _ = os.path.splitext(os.path.basename(song_file))
+        cache_file = os.path.join(cache_dir, filename)
         numpy.save(cache_file + "_mfcc", mfcc)
         numpy.save(cache_file + "_tempo", tempo)
         with open(cache_file + "_tempo", "w+"):
             pass
+
         return mfcc, tempo
 
     def calculate_songs_characteristics(self, mfcc_amount, cache_dir):
@@ -257,7 +260,7 @@ class NCAPicker(Picker):
             else:
                 if cache_dir:
                     mfcc, tempo = self.process_song_file(mfcc_amount,
-                                                         cache_dir, filename)
+                                                         cache_dir, song_file)
                 else:
                     mfcc, tempo = self.get_mfcc_and_tempo(song_file,
                                                           mfcc_amount)
