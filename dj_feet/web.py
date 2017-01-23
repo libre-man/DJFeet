@@ -1,8 +1,11 @@
+from tempfile import TemporaryDirectory
+import os
 import multiprocessing as mp
 from flask import Flask, request, jsonify
 from functools import wraps
 import queue
 import requests
+import pydub
 
 import dj_feet.core as core
 from .config import Config
@@ -56,15 +59,21 @@ STOP, PROCESS_SONG, START_LOOP = range(3)
 
 
 def backend_worker(worker_queue, remote, app_id):
-    while True:
-        out = worker_queue.get()
-        task, *args = out
-        if task == PROCESS_SONG:
-            pass
-        elif task == START_LOOP:
-            core.loop(remote, app_id, *args)
-        elif task == STOP:
-            return
+    with TemporaryDirectory() as cache_dir, TemporaryDirectory() as wav_dir:
+        while True:
+            out = worker_queue.get()
+            task, *args = out
+            if task == PROCESS_SONG:
+                file_name, *args = args
+                filename = os.path.splitext(os.path.basename(file_name))[0]
+                song = pydub.AudioSegment.from_mp3(file_name)
+                song.export(
+                    os.path.join(cache_dir, (filename + '.wav')),
+                    format='wav')
+            elif task == START_LOOP:
+                core.loop(remote, app_id, *args)
+            elif task == STOP:
+                return
 
 
 def not_started(f):
@@ -78,6 +87,7 @@ def not_started(f):
     return decorated_function
 
 
+@app.route('/')
 @app.route('/start/', methods=['POST'])
 @not_started
 def start_music():
@@ -106,6 +116,15 @@ def start_music():
         app.queue.put((START_LOOP, args))
         app.started = True
         return jsonify(ok=True)
+
+
+@app.route('/add_music/', methods=['POST'])
+def add_music():
+    try:
+        app.queue.put_nowait((PROCESS_SONG, request.json['file_location']))
+        return jsonify(ok=True)
+    except queue.Full:
+        return jsonify(ok=False)
 
 
 def im_alive():

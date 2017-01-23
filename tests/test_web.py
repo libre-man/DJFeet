@@ -6,6 +6,7 @@ import sys
 import json
 import queue
 import multiprocessing as mp
+import pydub
 from configparser import ConfigParser
 from helpers import MockingFunction
 from flask import Flask
@@ -202,9 +203,53 @@ def test_start_music_in_full(monkeypatch, app_client, data):
     assert mocked_queue_get_nowait.called
 
 
+@pytest.mark.parametrize('throw', [False, True])
+def test_add_music(monkeypatch, app_client, throw):
+    def my_put():
+        if throw:
+            raise queue.Full('Err')
+        else:
+            return None
+
+    mocked_queue_put = MockingFunction(my_put, simple=True)
+    monkeypatch.setattr(mp.queues.Queue, 'put_nowait', mocked_queue_put)
+
+    try:
+        my_file_loc = str(random.random()) + 'location/'
+        res = app_client.post(
+            '/add_music/',
+            content_type='application/json',
+            data=json.dumps({
+                'file_location': my_file_loc
+            }))
+
+        assert mocked_queue_put.called
+        assert mocked_queue_put.args[0][0][0] == (web.PROCESS_SONG, my_file_loc
+                                                  )
+
+        assert json.loads(res.get_data(as_text=True))['ok'] != throw
+        assert res.status_code == 200
+    except Exception as exp:
+        raise exp
+    finally:
+        monkeypatch.undo()
+
+
 def test_backend_worker(monkeypatch):
+    class MyAudioSegement():
+        def __init__(self):
+            self.args = []
+            self.called = False
+
+        def export(self, filename, format):
+            self.args.append((filename, format))
+            self.called = True
+
     mocked_loop = MockingFunction()
     monkeypatch.setattr(core, 'loop', mocked_loop)
+    my_segment = MyAudioSegement()
+    mocked_from_mp3 = MockingFunction(lambda: my_segment, simple=True)
+    monkeypatch.setattr(pydub.AudioSegment, 'from_mp3', mocked_from_mp3)
 
     worker_queue = queue.Queue()
 
@@ -212,7 +257,7 @@ def test_backend_worker(monkeypatch):
     my_host = str(random.random()) + 'loc'
     my_id = random.randint(0, 1000)
 
-    worker_queue.put((web.PROCESS_SONG, None))
+    worker_queue.put((web.PROCESS_SONG, '/filename/my_song.mp3'))
     worker_queue.put((web.START_LOOP, start_loop_arg))
     worker_queue.put((web.STOP, ))
 
@@ -220,3 +265,8 @@ def test_backend_worker(monkeypatch):
 
     assert mocked_loop.called
     assert mocked_loop.args[0][0] == (my_host, my_id, start_loop_arg)
+    assert mocked_from_mp3.called
+    assert my_segment.called
+    assert my_segment.args[0][0].startswith('/tmp/')
+    assert my_segment.args[0][0].endswith('/my_song.wav')
+    assert my_segment.args[0][1] == 'wav'
