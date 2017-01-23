@@ -6,9 +6,9 @@ import sys
 import json
 import queue
 import multiprocessing as mp
-from flask import g
 from configparser import ConfigParser
 from helpers import MockingFunction
+from flask import Flask
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
@@ -20,13 +20,21 @@ from dj_feet.pickers import Picker
 
 
 @pytest.fixture
+def my_flask():
+    yield web.MyFlask(__name__)
+
+
+@pytest.fixture
 def app(monkeypatch):
     monkeypatch.setattr(web, 'im_alive', lambda: None)
     with web.app.app_context():
-        yield web.start("1024", "/tmp/sdaas_input/", "/tmp/sdaas_output",
-                        "localhost")
+        my_app = web.start("1024", "/tmp/sdaas_input/", "/tmp/sdaas_output",
+                           "localhost")
+        assert isinstance(my_app, Flask)
+        assert isinstance(my_app, web.MyFlask)
+        yield my_app
 
-        stop_worker(g.queue, g.worker)
+        stop_worker(web.app.queue, web.app.worker)
 
 
 @pytest.fixture
@@ -63,7 +71,7 @@ def test_setup(monkeypatch):
 
     with web.app.app_context():
         web.start(str(my_id), "/in", "/out", my_addr)
-        stop_worker(g.queue, g.worker)
+        stop_worker(web.app.queue, web.app.worker)
         assert web.app.config['INPUT_DIR'] == '/in'
         assert web.app.config['OUTPUT_DIR'] == '/out'
 
@@ -71,11 +79,24 @@ def test_setup(monkeypatch):
     assert len(my_post_request.args[0][0]) == 1
     assert my_post_request.args[0][0][0] == my_addr + '/im_alive'
 
-    data = my_post_request.args[0][1]['data']
+    data = my_post_request.args[0][1]['json']
     assert data['id'] == my_id
     assert 'MyPicker' in data['options']['Picker']
     assert 'param1' in data['options']['Picker']['MyPicker']['parts']
     assert data['options']['Picker']['MyPicker']['parts']['param1']['required']
+
+
+@pytest.mark.parametrize("func", [
+    lambda x: x.started, lambda x: x.queue, lambda x: x.worker,
+    lambda x: setattr(x, 'started', True)
+])
+def test_my_flask_getters_and_setters(monkeypatch, func, my_flask):
+    mock_setup = MockingFunction()
+    monkeypatch.setattr(my_flask, 'setup', mock_setup)
+
+    func(my_flask)
+
+    assert mock_setup.called
 
 
 @pytest.mark.parametrize("data", [({
@@ -179,3 +200,23 @@ def test_start_music_in_full(monkeypatch, app_client, data):
     assert mocked_queue_put.called
     assert mocked_queue_put.args[0][0][0] is None
     assert mocked_queue_get_nowait.called
+
+
+def test_backend_worker(monkeypatch):
+    mocked_loop = MockingFunction()
+    monkeypatch.setattr(core, 'loop', mocked_loop)
+
+    worker_queue = queue.Queue()
+
+    start_loop_arg = random.random()
+    my_host = str(random.random()) + 'loc'
+    my_id = random.randint(0, 1000)
+
+    worker_queue.put((web.PROCESS_SONG, None))
+    worker_queue.put((web.START_LOOP, start_loop_arg))
+    worker_queue.put((web.STOP, ))
+
+    web.backend_worker(worker_queue, my_host, my_id)
+
+    assert mocked_loop.called
+    assert mocked_loop.args[0][0] == (my_host, my_id, start_loop_arg)
