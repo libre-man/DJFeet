@@ -11,23 +11,34 @@ class Config():
     """The main class for the config. This stores program config and the user
     config.
     """
-    FIXED_OPTIONS = ['song_folder']
+    FIXED_OPTIONS = ['song_folder', 'cache_dir']
+    BASECLASSES = [Picker, Controller, Transitioner, Communicator]
 
     def __init__(self):
-        self.user_config = ConfigParser()
+        self.user_config = {cls.__name__: dict() for cls in self.BASECLASSES}
+        self.set_default_options()
 
-    def parse_user_config(self, config_file):
-        """Read the user config for the given config file. This eagerly checks
-        if the config_file can be opened.
-        """
-        self.user_config.read_file(open(config_file))
+    def set_default_options(self):
+        for basecls in self.BASECLASSES:
+            for cls in helpers.get_all_subclasses(basecls):
+                if cls.__name__ not in self.user_config[basecls.__name__]:
+                    self.user_config[basecls.__name__][cls.__name__] = dict()
+
+                defaults = cls.__init__.__defaults__
+                if defaults is None:
+                    continue
+                # zip the default arguments with its default value and set this
+                # in user_config
+                for arg, val in zip(
+                        get_args(cls.__init__)[-len(defaults):], defaults):
+                    self.user_config[basecls.__name__][cls.__name__][arg] = val
 
     @staticmethod
     def get_all_options(baseclasses=None):
         """Get all options for all classes according to this scheme:"""
         configs = dict()
         if baseclasses is None:
-            baseclasses = [Picker, Controller, Transitioner, Communicator]
+            baseclasses = Config.BASECLASSES
         for basecls in baseclasses:
             configs[basecls.__name__] = dict()
             for subcls in helpers.get_all_subclasses(basecls):

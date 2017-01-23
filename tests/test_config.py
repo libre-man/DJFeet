@@ -33,14 +33,7 @@ def config_file():
 @pytest.fixture
 def config(config_file):
     conf = Config()
-    conf.parse_user_config(config_file)
     yield conf
-
-
-def test_user_config(config, config_file):
-    conf_parser = ConfigParser()
-    conf_parser.read_file(open(config_file))
-    assert config.user_config == conf_parser
 
 
 def test_global_config(config):
@@ -420,3 +413,37 @@ def test_get_all_options(default):
             assert items['doc']['long'] == assertions['doc']['long']
             del items['doc']
             assert items == {}
+
+
+@pytest.mark.parametrize('amount', [2])
+def test_parse_default_args(monkeypatch, amount):
+    monkeypatch.setattr(Config, 'BASECLASSES', [BaseClassOne, BaseClassTwo])
+    cfg = Config()
+
+    # We do this test multiple times to make sure we actually override values
+    for _ in range(amount):
+
+        base_1 = cfg.user_config['BaseClassOne']
+        base_2 = cfg.user_config['BaseClassTwo']
+
+        assert len(base_1) == 2
+        assert len(base_2) == 3
+
+        assert 'SubClassOneOne' in base_1
+        assert 'SubClassOneTwo' in base_1
+
+        assert 'SubClassTwoOne' in base_2
+        assert 'SubClassTwoTwo' in base_2
+        assert 'SubClassTwoThree' in base_2
+
+        all_subs = base_1.copy()
+        all_subs.update(base_2)
+
+        for name, items in all_subs.items():
+            assertions = globals()[name].assertions
+            for part, val in assertions['parts'].items():
+                assert (part in items) != val['required']
+                if part in items:
+                    del items[part]
+
+        cfg.set_default_options()
