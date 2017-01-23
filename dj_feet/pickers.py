@@ -15,16 +15,48 @@ from pprint import pprint
 
 
 class Picker:
+    """This is the base Picker class.
+
+    You should not use this class directly but should inherit from this class
+    if you want to implement a new picker. A subclass should override all
+    public methods of this class.
+    """
+
     def __init__(self):
+        """The initializer of the base picker class.
+
+        This function does nothing at the moment
+        """
         pass
 
     def get_next_song(self, user_feedback, force=False):
-        """Return a Song for the next song that should be used"""
+        """Get the next song that should be used.
+
+        :param user_feedback: The user-feedback of the transition that was done
+                              5 non `force` iterations ago.
+        :type user_feedback: dict
+        :param force: Indicating if we have to change song right now. This
+                      means the previous return value of `get_next_song` was
+                      not used.
+        :type force: bool
+        :rtype: dj_feet.song.Song
+        """
         raise NotImplementedError("This should be overridden")
 
 
 class SimplePicker(Picker):
+    """A simple picker that chooses songs by random.
+
+    This picker should not be used if you want any kind of intelligent
+    transitioning of songs. This picker will always pick a new random song and
+    will never pick the same song twice.
+    """
     def __init__(self, song_folder):
+        """Initialize the the `SimplePicker` object.
+
+        :param song_folder: The folder that contains the wav files to use.
+        :type song_folder: string
+        """
         super(SimplePicker, self).__init__()
         self.song_files = [
             os.path.join(song_folder, f) for f in os.listdir(song_folder)
@@ -32,6 +64,18 @@ class SimplePicker(Picker):
         ]
 
     def get_next_song(self, user_feedback, force=False):
+        """Get the next song.
+
+        This next song is always different from the previous song.
+
+        :param user_feedback: This is ignored.
+        :param force: This is also ignored as the returned song is always a new
+                      song.
+        :returns: A chosen song that has not been chosen yet.
+        :rtype: dj_feet.song.Song
+        :raises ValueError: If there are no songs left in `song_files` that are
+                            not yet picked.
+        """
         next_song = ""
         while not os.path.isfile(next_song):
             if not self.song_files:
@@ -51,6 +95,31 @@ class NCAPicker(Picker):
                  weights=None,
                  feedback_method='default',
                  max_tempo_percent=None):
+        """Create a new NCAPicker instance
+
+        :param song_folder: The folder of the wav file to use for merging.
+        :type song_folder: string
+        :param mfcc_amount: The number of mfcc's to use for picking.
+        :type mfcc_amount: int
+        :param current_multiplier: The amount to reduce the chance that we will
+                                   self loop. This is done by the following
+                                   formula: 1 / (1 + streak * multiplier)
+        :type current_multiplier: float
+        :param weight_amount: The amount of weights to use, a value of around 4
+                              is good. It should be less then mfcc_amount.
+        :type weight_amount: int
+        :param cache_dir: The directory to use for caching purposes.
+        :type cache_dir: string
+        :param weights: The default weights to use. If this is a list it should
+                        have a length of `weight_amount`
+        :type weights: None or list
+        :param feedback_method: The method to use for getting feedback.
+        :type feedback_method: string
+        :param max_tempo_percent: The maximum percentage the tempo of a new
+                                  song can differ from the tempo of the current
+                                  song.
+        :type max_tempo_percent: int
+        """
         super(NCAPicker, self).__init__()
 
         self.weight_amount = weight_amount
@@ -94,11 +163,19 @@ class NCAPicker(Picker):
         self.streak = 0
 
     def calculate_songs_characteristics(self, mfcc_amount, cache_dir):
-        """Calculate the songs characteristics. These are returned as a tuple
-        of respectively their PCA components, a dictionary for in which each
-        song has a tuple of respectively their cholesky decomposition, the
-        mean of their mfcc and their average BPM. Finally the return tuple
-        contains the current weights for calculating the covariance matrix.
+        """Calculate the songs characteristics.
+
+        :param mfcc_amount: The amount of mfccs to calculate.
+        :type mfcc_amount: int
+        :param cache_dir: The directory to find and store the cache. The bpm
+                          and mfcc is cached.
+        :type cache_dir: string or False to disable caching.
+        :returns: A tuple of respectively their PCA components, a dictionary
+                  for in which each song has a tuple of respectively their
+                  cholesky decomposition, the mean of their mfcc and their
+                  average BPM. Finally the return tuple contains the current
+                  weights for calculating the covariance matrix.
+        :rtype: tuple
         """
         mfccs = dict()
         tempos = dict()
@@ -161,36 +238,79 @@ class NCAPicker(Picker):
         return pca.components_.T, song_properties, weights
 
     def reset_songs(self):
-        """Restart with the full amount of songs. This does not alter the
-        weights."""
+        """Reset `self.song_files` to its original value.
+
+        This does not alter the weights calculated till now.
+
+        :rtype: None
+        """
         self.song_files = copy(self._song_files)
 
     @staticmethod
     def get_mfcc_and_tempo(song_file, mfcc_amount):
-        """Calculate the mfcc and estimated BPM for the given song file."""
+        """Calculate the mfcc and estimated BPM.
+
+        :param song_file: This file to calculate for.
+        :type song_file: string to a wav song file.
+        :type mfcc_amount: int
+        :param mfcc_amount: The amount of mfccs to calculate.
+        :returns: A tuple of the mfccs and tempo in BPM in this order.
+        :rtype: tuple
+        """
         song, sr = librosa.load(song_file)
         tempo, _ = librosa.beat.beat_track(song, sr)
         return librosa.feature.mfcc(song, sr, None, mfcc_amount), tempo
 
     @staticmethod
     def get_w_vector(pca, weights):
-        """Get a weighted pca matrix"""
+        """Get a weighted pca matrix.
+
+        :param pca: The PCA to apply the weights on.
+        :type pca: A square 2d PCA matrix.
+        :param weights: The weights to apply.
+        :type weights: A weights vector of the same height as the pca matrix
+        :returns: A square matrix of the same size as the PCA.
+        :rtype: numpy.array
+        """
         return numpy.array([
             sum((elem * weights[i] for i, elem in enumerate(row)))
             for row in pca
         ])
 
     def covariance(self, song_file, weights):
-        """Calculate a (approximation) of the covariance matrix using PCA and a
-        cholesky decomposition."""
+        """Calculate a (approximation) of the covariance matrix.
+
+        This is done by using a PCA and a cholesky decomposition.
+
+        :param song_file: The path to the song that should be used. Please note
+                          that this path should be in `self.song_properties`.
+        :type song_file: string
+        :param weights: The weights to be used.
+        :type weights: vector of the size of the pca that is in
+                       `self.song_properties` for the the given `song_file`.
+        :returns: A square matrix of the same size as the weights vector.
+        :rtype: numpy.array
+        """
         cholesky, _, _unused = self.song_properties[song_file]
         d = numpy.dot(
             numpy.diag(self.get_w_vector(self.pca, weights)), cholesky)
         return numpy.dot(d, d.T)
 
     def distance(self, song_q, song_p, weights=None):
-        """Calculate the distance between two MFCCs. This is based on this
-        paper: http://cs229.stanford.edu/proj2009/RajaniEkkizogloy.pdf
+        """Calculate the distance between two MFCCs.
+
+        This is done based on this paper:
+        http://cs229.stanford.edu/proj2009/RajaniEkkizogloy.pdf
+
+        :param song_q: The first song used.
+        :type song_q: string
+        :param song_p: The second song used.
+        :type song_p: string
+        :param weights: The weights vector to use.
+        :type weights: numpy.array
+        :returns: The distance between the two given songs. This distance is
+                  symmetric.
+        :rtype: int
         """
         if weights is None:
             weights = self.weights
