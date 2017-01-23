@@ -1,14 +1,59 @@
 from collections import namedtuple
 import re
 
-PARAM_OR_RETURNS_REGEX = re.compile(":(?:param|returns)")
-RETURNS_REGEX = re.compile(":returns: (?P<doc>.*)", re.S)
-PARAM_REGEX = re.compile(r":param[ \w]* (?P<name>[\*\w]+): (?P<doc>.*?)" +
-                         r"(?:(?=:param)|(?=:return)|(?=:raises)|\Z)", re.S)
+PARAM_REGEX = re.compile(r"param[ \w]* (?P<name>[\*\w]+):", re.S)
 
 
-def reindent(string):
-    return "\n".join(l.strip() for l in string.strip().split("\n"))
+def _parse_long_docstring(lines):
+    """Parse the long part (after the first newline) of a docstring.
+
+    :returns: A tuple of the long description of the function, the parameters
+              and the return value in this order.
+    """
+    returns = ""
+    long_description = []
+    params = {}
+
+    opt_param, opt_return = range(2)
+    in_desc = True
+    desc = name = cur = None
+    skip = False
+
+    for line in lines.split('\n') + [':end:']:
+        line = line.strip()
+        if not line:
+            continue
+        if in_desc:
+            if line[0] == ":":
+                in_desc = False
+            else:
+                long_description.append(line)
+                continue
+
+        if line[0] == ':':
+            skip = False
+
+            if cur == opt_param:
+                params[name] = " ".join(desc).strip()
+            elif cur == opt_return:
+                returns = " ".join(desc).strip()
+
+            line = line[1:]
+
+            if line.startswith('param') or line.startswith('returns'):
+                cur = opt_return
+                if line[0] == 'p':
+                    name = PARAM_REGEX.findall(line)[0]
+                    cur = opt_param
+                line = line[line.find(':') + 1:].strip()
+                desc = [line]
+            else:
+                skip = True
+
+        elif not skip:
+            desc.append(line)
+
+    return long_description, params, returns
 
 
 def parse_docstring(docstring):
@@ -22,7 +67,8 @@ def parse_docstring(docstring):
               }
     """
 
-    short_description = long_description = returns = ""
+    short_description = returns = ""
+    long_description = []
     params = {}
 
     if docstring:
@@ -30,32 +76,11 @@ def parse_docstring(docstring):
         short_description = lines[0]
 
         if len(lines) > 1:
-            long_description = lines[1].strip()
-
-            params_returns_desc = None
-
-            match = PARAM_OR_RETURNS_REGEX.search(long_description)
-            if match:
-                long_desc_end = match.start()
-                params_returns_desc = long_description[long_desc_end:].strip()
-                long_description = long_description[:long_desc_end].rstrip()
-
-            if params_returns_desc:
-                params = {
-                    name.strip(): " ".join(
-                        (line.strip() for line in doc.split("\n"))).strip()
-                    for name, doc in PARAM_REGEX.findall(params_returns_desc)
-                }
-
-                match = RETURNS_REGEX.search(params_returns_desc)
-                if match:
-                    returns = reindent(match.group("doc"))
+            long_description, params, returns = _parse_long_docstring(lines[1])
 
     return {
         "short": short_description,
-        "long": "\n".join(
-            line for line in long_description.split("\n")
-            if not line.strip().startswith(":")).rstrip(),
+        "long": " ".join(long_description),
         "params": params,
         "returns": returns
     }
