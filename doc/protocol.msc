@@ -5,10 +5,12 @@ title `Controller<->Server<->User' protocol
 participant Controller as c
 participant Server as s
 participant User as u
+
 note over c,s,u
     Each server has multiple controllers. A controller is used per channel while a client connects
     to a session, which has multiple channels. A server can be used to manage multiple channels.
 end note
+
 opt Startup
     note over c, s
         Create a docker giving the controller an unique integer id and the server web address.
@@ -25,11 +27,19 @@ opt Startup
     end note
     c->s: POST: /im_alive/, {id: integer, options: {subject: {parts: {part: {part_option: option in part_options} in parts}, doc: {short: string, long: string}} in subjects}}
 end
+
 opt Setup
-    note over c,s,u
-        These operations can be reordered at will.
-    end note
+    opt Setting configuration
+        u->+s: Set channel options in control panel
+        s->+c: POST: /set_config/, {subject: {name: string, options: {part_option: value in part_options}} in subjects}
+        c->-s: {ok: bool}
+        s->-u: Return to channel detail screen and lock options
+    end
+
     opt Music management
+      note over c,s,u
+          These operations can be reordered at will.
+      end note
         opt Add Music
             u->+s: Add music file in control panel
             s->u: Update music overview to pending
@@ -51,13 +61,8 @@ opt Setup
             s->-u: Update music overview
         end
     end
-    opt Setting configuration
-        u->+s: Set channel options in control panel
-        s->+c: POST: /set_config/, {subject: {name: string, options: {part_option: value in part_options}} in subjects}
-        c->-s: {ok: bool}
-        s->-u: Return to channel detail screen and lock options
-    end
 end
+
 opt Session Starting
     u->s: Presses start button or automatically at session.start
     s->+c: POST: /start/, {}
@@ -68,6 +73,7 @@ opt Session Starting
     end note
     c->s: POST: /controller_started/: {id: integer, epoch: integer}
 end
+
 opt During Playback
     opt Feedback Handling
         u->s: POST: /log_data/, feedback
@@ -92,6 +98,7 @@ opt During Playback
         end note
     end
 end
+
 opt Session stopping
     u->+s: Presses stop button or automatically at session.end
     note left of s
