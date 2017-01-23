@@ -78,7 +78,7 @@ def not_started(f):
     return decorated_function
 
 
-@app.route('/start', methods=['POST'])
+@app.route('/start/', methods=['POST'])
 @not_started
 def start_music():
     config_dict = {
@@ -110,7 +110,7 @@ def start_music():
 
 def im_alive():
     requests.post(
-        app.config['REMOTE'] + "/im_alive",
+        app.config['REMOTE'] + "/im_alive/",
         json={
             'id': app.config['ID'],
             'options': Config.get_all_options(),

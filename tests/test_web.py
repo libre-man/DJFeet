@@ -77,7 +77,7 @@ def test_setup(monkeypatch):
 
     assert my_post_request.called
     assert len(my_post_request.args[0][0]) == 1
-    assert my_post_request.args[0][0][0] == my_addr + '/im_alive'
+    assert my_post_request.args[0][0][0] == my_addr + '/im_alive/'
 
     data = my_post_request.args[0][1]['json']
     assert data['id'] == my_id
@@ -123,12 +123,12 @@ def test_start_music(monkeypatch, app_client, data):
                             mocked_get_communicator)
 
         response = app_client.post(
-            '/start', data=json.dumps(data), content_type='application/json')
+            '/start/', data=json.dumps(data), content_type='application/json')
         other_res = []
         for _ in range(10):
             other_res.append(
                 app_client.post(
-                    '/start',
+                    '/start/',
                     data=json.dumps(data),
                     content_type='application/json'))
     except Exception as exp:
@@ -183,7 +183,7 @@ def test_start_music_in_full(monkeypatch, app_client, data):
                             mocked_get_communicator)
 
         response = app_client.post(
-            '/start', data=json.dumps(data), content_type='application/json')
+            '/start/', data=json.dumps(data), content_type='application/json')
     except Exception as exp:
         raise exp
     finally:

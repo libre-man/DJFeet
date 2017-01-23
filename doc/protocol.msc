@@ -28,7 +28,7 @@ opt Startup
         `option` is of the type:
         {doc: string, required: bool, fixed: bool}
     end note
-    c->s: POST: /im_alive, {id: integer, options: {subject: {parts: {part: {part_option: option in part_options} in parts}, doc: {short: string, long: string}} in subjects}}
+    c->s: POST: /im_alive/, {id: integer, options: {subject: {parts: {part: {part_option: option in part_options} in parts}, doc: {short: string, long: string}} in subjects}}
 end
 
 opt Setup
@@ -40,20 +40,20 @@ opt Setup
         opt Add Music
             u->+s: Add music file in control panel
             s->u: Update music overview to pending
-            s->c: POST: /add_music, {file_location: string, id: integer}
-            c->s: POST: /music_processed, {id: integer}
+            s->c: POST: /add_music/, {file_location: string, id: integer}
+            c->s: POST: /music_processed/, {id: integer}
             s->-u: Update music overview
         end
 
         opt Delete Music
             u->+s: Delete music file from control panel
             s->u: Update music overview to pending
-            s->c: POST: /delete_music, {file_location: string}
+            s->c: POST: /delete_music/, {file_location: string}
             note left of c
                 file_location should be the same as in
                 /add_music
             end note
-            c->s: POST: /music_deleted, {id: integer}
+            c->s: POST: /music_deleted/, {id: integer}
             s->-u: Update music overview
         end
     end
@@ -61,19 +61,19 @@ end
 
 opt Session Starting
     u->s: Presses start button or automatically at session.start
-    c->s: POST: /start, {subject: {name: string, options: {part_option: value in part_options}} in subjects}
+    s->c: POST: /start/, {subject: {name: string, options: {part_option: value in part_options}} in subjects}
     note left of c
         Epoch is the end of the creation of the
         first example
     end note
-    c->s: POST: /controller_started: {id: integer, epoch: integer}
+    c->s: POST: /controller_started/: {id: integer, epoch: integer}
 end
 
 opt During Playback
     opt Feedback Handling
-        u->s: POST: /log_data, feedback
-        c->+s: POST: /get_feedback, {start: integer, end: integer, id: integer}
-        u->s: POST: /log_data, feedback
+        u->s: POST: /log_data/, feedback
+        c->+s: POST: /get_feedback/, {start: integer, end: integer, id: integer}
+        u->s: POST: /log_data/, feedback
         note left of s
             `time_left_channel' should be an integer
             offset from `$start'. If the user did not
@@ -81,13 +81,13 @@ opt During Playback
             be included in the JSON object and its
             value should be `NULL'.
         end note
-        u->s: POST: /log_data, feedback
+        u->s: POST: /log_data/, feedback
         s->-c: {feedback: {user: time_left_channel for channel at $start}}
-        u->s: POST: /log_data, feedback
+        u->s: POST: /log_data/, feedback
     end
 
     opt Iteration
-        c->s: POST: /iteration, {file_mixed: string, id: integer}
+        c->s: POST: /iteration/, {file_mixed: string, id: integer}
         note left of c
             file_mixed should be the same as in
             /add_music
