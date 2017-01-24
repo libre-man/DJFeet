@@ -51,11 +51,12 @@ opt Setup
         opt Delete Music
             u->+s: Delete music file from control panel
             s->u: Update music overview to pending
-            s->+c: POST: /delete_music/, {file_location: string}
+            s->+c: POST: /delete_music/, {file_location: string, id: int}
             c->-s: {ok: bool}
             note left of c
                 file_location should be the same as in
-                /add_music
+                /add_music, however id does not have to
+                be the same
             end note
             c->s: POST: /music_deleted/, {id: integer}
             s->-u: Update music overview
