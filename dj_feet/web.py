@@ -123,7 +123,7 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                 elif task == STOP:
                     return
         except Exception as exp:
-            requests.post('/died/', json={'id': app_id})
+            requests.post(remote + '/died/', json={'id': app_id})
             raise exp
 
 

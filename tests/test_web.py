@@ -142,7 +142,7 @@ def test_start_music(monkeypatch, app_client, empty):
 
     if empty:
         assert mocked_queue_put.called
-        assert mocked_queue_put.args[0][0] == ((web.START_LOOP, ),)
+        assert mocked_queue_put.args[0][0] == ((web.START_LOOP, ), )
     else:
         assert not mocked_queue_put.called
 
@@ -191,14 +191,16 @@ def test_exception_backend_worker(monkeypatch):
 
     song_id = random.randint(1000, 10000)
     my_id = random.randint(0, 1000)
+    my_host = str(random.randint(2, 1000)) + '/wowsers.html'
 
     worker_queue.put((web.PROCESS_SONG, '/filename/my_song.mp3', song_id))
 
     with pytest.raises(FileNotFoundError):
-        web.backend_worker(worker_queue, 'google.com', my_id, '/output')
+        web.backend_worker(worker_queue, my_host, my_id, '/output')
 
     assert mocked_post.called
     assert mocked_post.args[0][1]['json']['id'] == my_id
+    assert mocked_post.args[0][0] == (my_host + '/died/', )
 
 
 def test_backend_worker(monkeypatch):
