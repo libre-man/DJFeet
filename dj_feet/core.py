@@ -50,7 +50,7 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
             segment_size = merge_offset
 
         print("Trying to write to output")
-        transitioner.write(result)
+        transitioner.write_sample(result)
         print("Wrote to output")
 
         sleep_time = controller.waittime(new_sample)

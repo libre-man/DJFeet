@@ -98,7 +98,7 @@ def mock_exception_transitioner():
             self.out = random.random()
             return self.out, 30
 
-        def write(self, sample):
+        def write_sample(self, sample):
             assert sample == self.out
 
     yield MockTransitioner()
@@ -127,7 +127,7 @@ def mock_transitioner():
             self.merge_times.append(new_time)
             return to_emit, new_time
 
-        def write(self, sample):
+        def write_sample(self, sample):
             self.write_args.append(sample)
 
     yield MockTransitioner()
