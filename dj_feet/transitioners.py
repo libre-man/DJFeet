@@ -41,12 +41,12 @@ class InfJukeboxTransitioner(Transitioner):
         Note: next_song can be the same as prev_song, the next segment of this
               song is returned in this case.
         """
+        if prev_song is None:
+            prev_song = next_song
+
         # Check whether the previous song still has segment size of time left
         if not prev_song.segment_size_left(self.segment_size):
             raise ValueError("Song time exceeded")
-
-        if prev_song is None:
-            prev_song = next_song
 
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
