@@ -146,7 +146,7 @@ class Config():
         """
         kwargs = dict()
 
-        for key, val in self.user_config[config_key].items():
+        for key, val in self.user_config[config_key][cls.__name__].items():
             try:
                 if key in get_args(cls.__init__) and key != 'self':
                     kwargs[key] = val

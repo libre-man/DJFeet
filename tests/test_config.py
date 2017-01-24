@@ -136,12 +136,16 @@ class WithFixedClass:
 ])
 def test_get_class_args(config, monkeypatch, config_dict, cls, clsname,
                         expected):
-    monkeypatch.setattr(config, 'user_config', {clsname: config_dict})
+    basename = 'wowsers'
+    monkeypatch.setattr(config, 'user_config',
+                        {basename: {
+                            cls.__name__: config_dict
+                        }})
     if isinstance(expected, type) and issubclass(expected, Exception):
         with pytest.raises(expected):
             kwargs = config._get_class_args(cls, clsname)
     else:
-        kwargs = config._get_class_args(cls, clsname)
+        kwargs = config._get_class_args(cls, basename)
         assert kwargs == expected
 
 
