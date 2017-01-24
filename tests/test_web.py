@@ -174,8 +174,10 @@ def test_start_music_in_full(monkeypatch, app_client, data):
     assert mocked_queue_get_nowait.called
 
 
+@pytest.mark.parametrize('url,expected_code', [(
+    '/delete_music/', web.DELETE_SONG), ('/add_music/', web.PROCESS_SONG)])
 @pytest.mark.parametrize('throw', [False, True])
-def test_add_music(monkeypatch, app_client, throw):
+def test_add_music(monkeypatch, app_client, throw, url, expected_code):
     def my_put():
         if throw:
             raise queue.Full('Err')
@@ -189,7 +191,7 @@ def test_add_music(monkeypatch, app_client, throw):
         my_file_loc = str(random.random()) + 'location/'
         song_id = random.randint(10, 1000)
         res = app_client.post(
-            '/add_music/',
+            url,
             content_type='application/json',
             data=json.dumps({
                 'file_location': my_file_loc,
@@ -197,8 +199,8 @@ def test_add_music(monkeypatch, app_client, throw):
             }))
 
         assert mocked_queue_put.called
-        assert mocked_queue_put.args[0][0][0] == (web.PROCESS_SONG,
-                                                  my_file_loc, song_id)
+        assert mocked_queue_put.args[0][0][0] == (expected_code, my_file_loc,
+                                                  song_id)
 
         assert json.loads(res.get_data(as_text=True))['ok'] != throw
         assert res.status_code == 200
@@ -279,6 +281,9 @@ def test_backend_worker(monkeypatch):
     monkeypatch.setattr(config.Config, 'update_config_main_options',
                         mocked_config_mupdate)
 
+    mocked_remove = MockingFunction()
+    monkeypatch.setattr(os, 'remove', mocked_remove)
+
     worker_queue = queue.Queue()
 
     start_loop_arg = random.random()
@@ -296,6 +301,7 @@ def test_backend_worker(monkeypatch):
             }
         }
     }))
+    worker_queue.put((web.DELETE_SONG, '/remove/this.mp3', song_id))
     worker_queue.put((web.STOP, ))
 
     web.backend_worker(worker_queue, my_host, my_id, '/output')
@@ -320,6 +326,12 @@ def test_backend_worker(monkeypatch):
     assert mocked_post.called
     assert mocked_post.args[0][0][0] == my_host + '/music_processed/'
     assert mocked_post.args[0][1]['json']['id'] == song_id
+
+    assert mocked_post.args[1][0][0] == my_host + '/music_deleted/'
+    assert mocked_post.args[1][1]['json']['id'] == song_id
+    assert mocked_remove.called
+    assert mocked_remove.args[0][0][0].endswith('this.wav')
+    assert mocked_remove.args[0][0][0].startswith('/tmp/')
 
     assert mocked_get_class.called
     assert MyPicker.called

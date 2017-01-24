@@ -60,7 +60,7 @@ class MyFlask(Flask):
 
 
 app = MyFlask(__name__)
-STOP, PROCESS_SONG, START_LOOP, OPTIONS = range(4)
+STOP, PROCESS_SONG, DELETE_SONG, START_LOOP, OPTIONS = range(5)
 
 
 def backend_worker(worker_queue, remote, app_id, output_dir):
@@ -94,6 +94,18 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                     picker.process_song_file(**kwargs)
                     requests.post(
                         remote + '/music_processed/', json={'id': file_id})
+
+                elif task == DELETE_SONG:
+                    mp3_file_location, file_id, *args = args
+                    filename, _ = os.path.splitext(
+                        os.path.basename(mp3_file_location))
+                    song = pydub.AudioSegment.from_mp3(mp3_file_location)
+                    wav_file_location = os.path.join(wav_dir,
+                                                     (filename + '.wav'))
+                    os.remove(wav_file_location)
+                    os.remove(mp3_file_location)
+                    requests.post(
+                        remote + '/music_deleted/', json={'id': file_id})
 
                 elif task == START_LOOP:
                     core.loop(remote, app_id,
@@ -167,6 +179,18 @@ def add_music():
     try:
         app.queue.put_nowait(
             (PROCESS_SONG, request.json['file_location'], request.json['id']))
+        return jsonify(ok=True)
+    except queue.Full:
+        return jsonify(ok=False)
+
+
+@app.route('/delete_music/', methods=['POST'])
+@not_started
+@needs_options
+def remove_music():
+    try:
+        app.queue.put_nowait(
+            (DELETE_SONG, request.json['file_location'], request.json['id']))
         return jsonify(ok=True)
     except queue.Full:
         return jsonify(ok=False)
