@@ -112,7 +112,7 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                         remote + '/music_deleted/', json={'id': file_id})
 
                 elif task == START_LOOP:
-                    core.loop(remote, app_id,
+                    core.loop(app_id, remote,
                               cfg.get_controller(),
                               cfg.get_picker(),
                               cfg.get_transitioner(), cfg.get_communicator())

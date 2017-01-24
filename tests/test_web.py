@@ -282,7 +282,7 @@ def test_backend_worker(monkeypatch):
     web.backend_worker(worker_queue, my_host, my_id, '/output')
 
     assert mocked_loop.called
-    assert mocked_loop.args[0][0] == (my_host, my_id, 'Controller', 'Picker',
+    assert mocked_loop.args[0][0] == (my_id, my_host, 'Controller', 'Picker',
                                       'Transitioner', 'Communicator')
     assert mocked_from_mp3.called
 
