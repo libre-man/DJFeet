@@ -68,30 +68,40 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
         cfg.FIXED_OPTIONS['song_folder'] = wav_dir
         cfg.FIXED_OPTIONS['output_folder'] = output_dir
 
-        while True:
-            out = worker_queue.get()
-            task, *args = out
-            if task == PROCESS_SONG:
-                file_name, file_id, *args = args
-                filename = os.path.splitext(os.path.basename(file_name))[0]
-                song = pydub.AudioSegment.from_mp3(file_name)
-                song.export(
-                    os.path.join(cache_dir, (filename + '.wav')), format='wav')
-                requests.post(
-                    remote + '/music_processed/', json={'id': file_id})
-            elif task == START_LOOP:
-                core.loop(remote, app_id,
-                          cfg.get_controller(),
-                          cfg.get_picker(),
-                          cfg.get_transitioner(), cfg.get_communicator())
-            elif task == OPTIONS:
-                new_options, *args = args
-                for basecls, vals in new_options.items():
-                    cfg.update_config_class_options(basecls, vals['name'],
-                                                    vals['options'])
-                    cfg.update_config_main_options({basecls: vals['name']})
-            elif task == STOP:
-                return
+        try:
+            while True:
+                out = worker_queue.get()
+                task, *args = out
+
+                if task == PROCESS_SONG:
+                    # TODO: Fix this piece
+                    file_name, file_id, *args = args
+                    filename = os.path.splitext(os.path.basename(file_name))[0]
+                    song = pydub.AudioSegment.from_mp3(file_name)
+                    song.export(
+                        os.path.join(wav_dir, (filename + '.wav')),
+                        format='wav')
+                    requests.post(
+                        remote + '/music_processed/', json={'id': file_id})
+
+                elif task == START_LOOP:
+                    core.loop(remote, app_id,
+                              cfg.get_controller(),
+                              cfg.get_picker(),
+                              cfg.get_transitioner(), cfg.get_communicator())
+
+                elif task == OPTIONS:
+                    new_options, *args = args
+                    for basecls, vals in new_options.items():
+                        cfg.update_config_class_options(basecls, vals['name'],
+                                                        vals['options'])
+                        cfg.update_config_main_options({basecls: vals['name']})
+
+                elif task == STOP:
+                    return
+        except Exception as exp:
+            requests.post('/died/', json={'id': app_id})
+            raise exp
 
 
 def needs_options(f):
