@@ -178,7 +178,7 @@ class C(B):
 def test_get_class_instance(config, monkeypatch, basecls, cls, cls_args):
     mock_get_class = MockingFunction(lambda: cls, simple=True)
     mock_get_class_args = MockingFunction(lambda: cls_args, simple=True)
-    monkeypatch.setattr(config, "_get_class", mock_get_class)
+    monkeypatch.setattr(config, "get_class", mock_get_class)
     monkeypatch.setattr(config, "_get_class_args", mock_get_class_args)
 
     cls_instance = config._get_class_instance(basecls, cls.__name__)
@@ -208,13 +208,13 @@ def test_get_class(config, monkeypatch, expected, basecls, cls_name,
 
     def get():
         if boolean:
-            return config._get_class(basecls, cls_name)
+            return config.get_class(basecls, cls_name)
         else:
             monkeypatch.setattr(config, "user_config",
                                 {'main': {
                                     basecls.__name__: cls_name
                                 }})
-            return config._get_class(basecls, None)
+            return config.get_class(basecls, None)
 
     if isinstance(expected, type) and issubclass(expected, Exception):
         with pytest.raises(expected):

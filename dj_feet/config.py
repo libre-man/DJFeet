@@ -175,12 +175,22 @@ class Config():
         """Get a instance of a class for the given category with the given
         name.
         """
-        cls = self._get_class(basecls, cls_name)
+        cls = self.get_class(basecls, cls_name)
         return cls(**self._get_class_args(cls, basecls.__name__))
 
-    def _get_class(self, basecls, cls_name):
-        """Get a class for the given category with the given name. Note: this
-        does not return an instance, only the class.
+    def get_class(self, basecls, cls_name):
+        """Get a class for the given category with the given name.
+
+        .. note:: this does not return an instance, only the class.
+
+        :param type basecls: The base class, this should be a member of
+                             BASECLASSES.
+        :param cls_name: The name of the subclass to find. This class
+                         should be a subclass of basecls. If `cls_name` is none
+                         the name from `user_config['main'][basecls]` is used.
+        :type cls_name: str or None
+        :return: The class object with the given `cls_name`
+        :rtype: type
         """
         if cls_name is None:
             cls_name = self.user_config["main"][basecls.__name__]
