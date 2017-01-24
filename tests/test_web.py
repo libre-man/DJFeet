@@ -31,7 +31,7 @@ def app(monkeypatch):
     monkeypatch.setattr(web, 'im_alive', lambda: None)
     with web.app.app_context():
         my_app = web.start("1024", "/tmp/sdaas_input/", "/tmp/sdaas_output",
-                           "localhost")
+                           None)
         assert isinstance(my_app, Flask)
         assert isinstance(my_app, web.MyFlask)
         yield my_app

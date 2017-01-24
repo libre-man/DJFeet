@@ -75,6 +75,8 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                 out = worker_queue.get()
                 task, *args = out
 
+                print("Got a {} command".format(task))
+
                 if task == PROCESS_SONG:
                     mp3_file_location, file_id, *args = args
                     filename, _ = os.path.splitext(
@@ -125,8 +127,14 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                 elif task == STOP:
                     return
         except Exception as exp:
-            requests.post(remote + '/died/', json={'id': app_id})
+            print("Got exception {}!".format(exp))
             raise exp
+        finally:
+            print("Quiting the backend worker!!!!!")
+            if remote is not None:
+                requests.post(remote + '/died/', json={'id': app_id})
+            else:
+                print("Remote is None!")
 
 
 def needs_options(f):
