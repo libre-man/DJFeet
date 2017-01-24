@@ -84,10 +84,12 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                                                      (filename + '.wav'))
                     song.export(wav_file_location, format='wav')
                     picker = cfg.get_class(pickers.Picker, None)
+                    kwargs = {}
+                    kwargs.update(cfg.user_config['Picker'][picker.__name__])
+                    kwargs.update(cfg.FIXED_OPTIONS)
                     kwargs = {
                         key: val
-                        for key, val in cfg.user_config['Picker'][
-                            picker.__name__].items()
+                        for key, val in kwargs.items()
                         if key in get_args(picker.process_song_file)
                     }
                     kwargs.update({'song_file': wav_file_location})
