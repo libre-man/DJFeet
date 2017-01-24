@@ -25,6 +25,7 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
                                                           new_sample)
                 break
             except ValueError:
+                print('Trying with some FORCE!')
                 new_sample = picker.get_next_song(feedback, force=True)
 
         if merge_times:
@@ -46,6 +47,7 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
         transitioner.write(result)
 
         sleep_time = controller.waittime(new_sample)
+        print('Going to sleep for {} seconds'.format(sleep_time))
         if sleep_time < 0:
             print(
                 'Sleep time is negative, not enough samples!', file=sys.stderr)
