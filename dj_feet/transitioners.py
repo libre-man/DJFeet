@@ -45,12 +45,15 @@ class InfJukeboxTransitioner(Transitioner):
         if not prev_song.segment_size_left(self.segment_size):
             raise ValueError("Song time exceeded")
 
+        if prev_song is None:
+            prev_song = next_song
+
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
         seg_start, seg_end = prev_song.next_segment(self.segment_size)
 
         # Check if the next song is the same as the current song.
-        if prev_song.file_location is next_song.file_location:
+        if prev_song.file_location == next_song.file_location:
             # If it is the same song, return the next segment.
             return prev_song.time_series[seg_start:
                                          seg_end], datetime.timedelta(
