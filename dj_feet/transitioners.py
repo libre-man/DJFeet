@@ -42,23 +42,29 @@ class InfJukeboxTransitioner(Transitioner):
               song is returned in this case.
         """
         if prev_song is None:
+            print('Doing the first merge.')
             prev_song = next_song
 
         # Check whether the previous song still has segment size of time left
         if not prev_song.segment_size_left(self.segment_size):
+            print("Song time exceeded")
             raise ValueError("Song time exceeded")
 
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
         seg_start, seg_end = prev_song.next_segment(self.segment_size)
 
+        print("Going from {} to {} segments".format(seg_start, seg_end))
+
         # Check if the next song is the same as the current song.
         if prev_song.file_location == next_song.file_location:
+            print("Merging the same songs: appending")
             # If it is the same song, return the next segment.
             return prev_song.time_series[seg_start:
                                          seg_end], datetime.timedelta(
                                              seconds=self.segment_size)
         else:
+            print("Merging the two different songs")
             # If it's not the same song, compare both songs and find similar
             # frames to transition on. These are looked for in the upcoming
             # segment of the current song and the first *segment_size* of the
@@ -142,5 +148,6 @@ class InfJukeboxTransitioner(Transitioner):
         return final_seg
 
     def write_sample(self, sample):
+        print("Writing {} to {} dir".format(sample, self.output_folder))
         librosa.output.write_wav(
             self.output_folder, sample, sr=22050, norm=False)

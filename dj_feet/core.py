@@ -10,6 +10,7 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
     old_sample = None
     segment_size = None
     i = 0  # The part we are generating
+    print("Starting core loop")
 
     while controller.should_continue():
         if len(merge_times) == 4:
@@ -18,7 +19,9 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
         else:
             feedback = {}
 
+        print("Starting picking")
         new_sample = picker.get_next_song(feedback, force=False)
+        print("Got song: {}".format(new_sample))
         while True:
             try:
                 result, merge_offset = transitioner.merge(old_sample,
@@ -27,6 +30,8 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
             except ValueError:
                 print('Trying with some FORCE!')
                 new_sample = picker.get_next_song(feedback, force=True)
+
+        print("Appending succeeded. Continuing")
 
         if merge_times:
             # First update the previous segment with an ending time
@@ -44,7 +49,9 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
             merge_times.append([0])
             segment_size = merge_offset
 
+        print("Trying to write to output")
         transitioner.write(result)
+        print("Wrote to output")
 
         sleep_time = controller.waittime(new_sample)
         print('Going to sleep for {} seconds'.format(sleep_time))
@@ -56,3 +63,4 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
 
         old_sample = new_sample
         i += 1
+    print("Ended our core loop!")
