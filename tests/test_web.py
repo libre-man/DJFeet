@@ -14,6 +14,7 @@ from flask import Flask
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
 
+import dj_feet.pickers as pickers
 import dj_feet.web as web
 import dj_feet.core as core
 import dj_feet.config as config
@@ -207,6 +208,24 @@ def test_add_music(monkeypatch, app_client, throw):
         monkeypatch.undo()
 
 
+def test_exception_backend_worker(monkeypatch):
+    mocked_post = MockingFunction()
+    monkeypatch.setattr(requests, 'post', mocked_post)
+
+    worker_queue = queue.Queue()
+
+    song_id = random.randint(1000, 10000)
+    my_id = random.randint(0, 1000)
+
+    worker_queue.put((web.PROCESS_SONG, '/filename/my_song.mp3', song_id))
+
+    with pytest.raises(FileNotFoundError):
+        web.backend_worker(worker_queue, 'google.com', my_id, '/output')
+
+    assert mocked_post.called
+    assert mocked_post.args[0][1]['json']['id'] == my_id
+
+
 def test_backend_worker(monkeypatch):
     class MyAudioSegement():
         def __init__(self):
@@ -216,6 +235,18 @@ def test_backend_worker(monkeypatch):
         def export(self, filename, format):
             self.args.append((filename, format))
             self.called = True
+
+    class MyPicker(pickers.Picker):
+        called = False
+        args = []
+
+        def __init__(self, other, rest=101, a=True):
+            pass
+
+        @staticmethod
+        def process_song_file(song_file, rest):
+            MyPicker.args.append((song_file, rest))
+            MyPicker.called = True
 
     mocked_get_controller = MockingFunction(lambda: 'Controller')
     mocked_get_picker = MockingFunction(lambda: 'Picker')
@@ -233,6 +264,11 @@ def test_backend_worker(monkeypatch):
     my_segment = MyAudioSegement()
     mocked_from_mp3 = MockingFunction(lambda: my_segment, simple=True)
     monkeypatch.setattr(pydub.AudioSegment, 'from_mp3', mocked_from_mp3)
+    # This also patches .export as this is done in MyAudioSegement
+
+    mocked_get_class = MockingFunction(lambda: MyPicker, simple=True)
+    monkeypatch.setattr(config.Config, 'get_class', mocked_get_class)
+
     mocked_post = MockingFunction()
     monkeypatch.setattr(requests, 'post', mocked_post)
 
@@ -284,6 +320,10 @@ def test_backend_worker(monkeypatch):
     assert mocked_post.called
     assert mocked_post.args[0][0][0] == my_host + '/music_processed/'
     assert mocked_post.args[0][1]['json']['id'] == song_id
+
+    assert mocked_get_class.called
+    assert MyPicker.called
+    assert MyPicker.args == [(my_segment.args[0][0], 101)]
 
 
 def test_setting_user_config(incomplete_app_client):

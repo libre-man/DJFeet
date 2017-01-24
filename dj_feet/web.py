@@ -7,8 +7,10 @@ import queue
 import requests
 import pydub
 
+import dj_feet.pickers as pickers
 import dj_feet.core as core
 from .config import Config
+from .helpers import get_args
 
 
 class MyFlask(Flask):
@@ -74,13 +76,22 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                 task, *args = out
 
                 if task == PROCESS_SONG:
-                    # TODO: Fix this piece
-                    file_name, file_id, *args = args
-                    filename = os.path.splitext(os.path.basename(file_name))[0]
-                    song = pydub.AudioSegment.from_mp3(file_name)
-                    song.export(
-                        os.path.join(wav_dir, (filename + '.wav')),
-                        format='wav')
+                    mp3_file_location, file_id, *args = args
+                    filename, _ = os.path.splitext(
+                        os.path.basename(mp3_file_location))
+                    song = pydub.AudioSegment.from_mp3(mp3_file_location)
+                    wav_file_location = os.path.join(wav_dir,
+                                                     (filename + '.wav'))
+                    song.export(wav_file_location, format='wav')
+                    picker = cfg.get_class(pickers.Picker, None)
+                    kwargs = {
+                        key: val
+                        for key, val in cfg.user_config['Picker'][
+                            picker.__name__].items()
+                        if key in get_args(picker.process_song_file)
+                    }
+                    kwargs.update({'song_file': wav_file_location})
+                    picker.process_song_file(**kwargs)
                     requests.post(
                         remote + '/music_processed/', json={'id': file_id})
 
