@@ -162,14 +162,12 @@ def set_config():
 @not_started
 @needs_options
 def start_music():
-    try:
-        queue_item = app.queue.get_nowait()
-        app.queue.put(queue_item)
-        return jsonify(ok=False)
-    except queue.Empty:
+    if app.queue.empty():
         app.queue.put((START_LOOP, ))
         app.started = True
         return jsonify(ok=True)
+    else:
+        return jsonify(ok=False)
 
 
 @app.route('/add_music/', methods=['POST'])

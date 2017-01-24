@@ -110,13 +110,10 @@ def test_my_flask_getters_and_setters(monkeypatch, func, my_flask):
     assert mock_setup.called
 
 
-@pytest.mark.parametrize("data", [({
-    "Picker": {
-        "name": "MyPicker",
-        "options": [1, 2, 3, 4]
-    }
-})])
-def test_start_music(monkeypatch, app_client, data):
+@pytest.mark.parametrize('empty', [True, False])
+def test_start_music(monkeypatch, app_client, empty):
+    mocked_queue_empty = MockingFunction(lambda: empty, simple=True)
+    monkeypatch.setattr(mp.queues.Queue, 'empty', mocked_queue_empty)
     mocked_queue_put = MockingFunction()
     monkeypatch.setattr(mp.queues.Queue, 'put', mocked_queue_put)
 
@@ -135,43 +132,19 @@ def test_start_music(monkeypatch, app_client, data):
     finally:
         monkeypatch.undo()
 
+    mocked_queue_empty.called
+
     assert response.status_code == 200
-    assert json.loads(response.get_data(as_text=True))['ok']
+    assert json.loads(response.get_data(as_text=True))['ok'] == empty
     for res in other_res:
-        assert res.status_code == 410
+        assert res.status_code == (410 if empty else 200)
         assert not json.loads(res.get_data(as_text=True))['ok']
 
-    assert mocked_queue_put.called
-    assert mocked_queue_put.args[0][0][0] == (web.START_LOOP, )
-
-
-@pytest.mark.parametrize("data", [({
-    "Picker": {
-        "name": "MyPicker",
-        "options": [1, 2, 3, 4]
-    }
-})])
-def test_start_music_in_full(monkeypatch, app_client, data):
-    mocked_queue_put = MockingFunction()
-    mocked_queue_get_nowait = MockingFunction(func=lambda: None, simple=True)
-    monkeypatch.setattr(mp.queues.Queue, 'put', mocked_queue_put)
-    monkeypatch.setattr(mp.queues.Queue, 'get_nowait', mocked_queue_get_nowait)
-
-    try:
-        response = app_client.post(
-            '/start/', data=json.dumps({}), content_type='application/json')
-    except Exception as exp:
-        raise exp
-    finally:
-        monkeypatch.undo()
-
-    assert response.status_code == 200
-    data = json.loads(response.get_data(as_text=True))
-    assert not data['ok']
-
-    assert mocked_queue_put.called
-    assert mocked_queue_put.args[0][0][0] is None
-    assert mocked_queue_get_nowait.called
+    if empty:
+        assert mocked_queue_put.called
+        assert mocked_queue_put.args[0][0] == ((web.START_LOOP, ),)
+    else:
+        assert not mocked_queue_put.called
 
 
 @pytest.mark.parametrize('url,expected_code', [(
