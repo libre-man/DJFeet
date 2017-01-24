@@ -215,14 +215,19 @@ class NCAPicker(Picker):
         :return: A tuple of the mfcc and tempo in this order.
         :rtype: tuple
         """
+        print("Loading MFCC and tempo variables from {}".format(song_file))
         mfcc, tempo = NCAPicker.get_mfcc_and_tempo(song_file, mfcc_amount)
+        print("Loaded mfcc and tempo. Writing mfcc.")
 
         filename, _ = os.path.splitext(os.path.basename(song_file))
         cache_file = os.path.join(cache_dir, filename)
         numpy.save(cache_file + "_mfcc", mfcc)
+        print("Done writing mfcc, writing tempo.")
         numpy.save(cache_file + "_tempo", tempo)
-        with open(cache_file + "_tempo", "w+"):
+        print("Done writing tempo. Touching done file.")
+        with open(cache_file + "_done", "w+"):
             pass
+        print("Done with processing {}".format(song_file))
 
         return mfcc, tempo
 
