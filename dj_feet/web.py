@@ -69,6 +69,7 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
         cfg.FIXED_OPTIONS['cache_dir'] = cache_dir
         cfg.FIXED_OPTIONS['song_folder'] = wav_dir
         cfg.FIXED_OPTIONS['output_folder'] = output_dir
+        ultra = False
 
         try:
             while True:
@@ -126,13 +127,19 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
 
                 elif task == STOP:
                     return
+        except MemoryError as exp:
+            ultra = True
+            print("Got a memory error, dying to the max!")
+            raise exp
         except Exception as exp:
             print("Got exception {}!".format(exp))
             raise exp
         finally:
             print("Quiting the backend worker!!!!!")
             if remote is not None:
-                requests.post(remote + '/died/', json={'id': app_id})
+                requests.post(
+                    remote + '/' + ('ultra_' if ultra else '') + 'died/',
+                    json={'id': app_id})
             else:
                 print("Remote is None!")
 

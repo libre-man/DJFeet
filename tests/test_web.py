@@ -183,9 +183,16 @@ def test_add_music(monkeypatch, app_client, throw, url, expected_code):
         monkeypatch.undo()
 
 
-def test_exception_backend_worker(monkeypatch):
+@pytest.mark.parametrize("raises", [Exception, MemoryError])
+def test_exception_backend_worker(raises, monkeypatch):
     mocked_post = MockingFunction()
     monkeypatch.setattr(requests, 'post', mocked_post)
+
+    def raising():
+        raise raises
+
+    mocked_split_text = MockingFunction(raising, simple=True)
+    monkeypatch.setattr(os.path, 'splitext', mocked_split_text)
 
     worker_queue = queue.Queue()
 
@@ -195,12 +202,15 @@ def test_exception_backend_worker(monkeypatch):
 
     worker_queue.put((web.PROCESS_SONG, '/filename/my_song.mp3', song_id))
 
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(raises):
         web.backend_worker(worker_queue, my_host, my_id, '/output')
 
     assert mocked_post.called
     assert mocked_post.args[0][1]['json']['id'] == my_id
-    assert mocked_post.args[0][0] == (my_host + '/died/', )
+    if raises is MemoryError:
+        assert mocked_post.args[0][0] == (my_host + '/ultra_died/', )
+    else:
+        assert mocked_post.args[0][0] == (my_host + '/died/', )
 
 
 def test_backend_worker(monkeypatch):
