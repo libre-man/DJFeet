@@ -75,6 +75,14 @@ opt Session Starting
     c->s: POST: /controller_started/: {id: integer, epoch: integer}
 end
 
+opt At any time
+    c->s: POST: /died/: {id: integer}
+    note left of c
+        ultra_died is send on a MemoryError
+    end note
+    c->s: POST: /ultra_died/: {id: integer}
+end
+
 opt During Playback
     opt Feedback Handling
         u->s: POST: /log_data/, feedback
@@ -92,10 +100,10 @@ opt During Playback
         u->s: POST: /log_data/, feedback
     end
     opt Iteration
-        c->s: POST: /iteration/, {file_mixed: string, id: integer}
+        c->s: POST: /iteration/, {filename_mixed: string, id: integer}
         note left of c
-            file_mixed should be the same as in
-            /add_music
+            file_mixed should a filename that was
+            passed in /add_music/ but without extension.
         end note
     end
 end
