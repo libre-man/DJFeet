@@ -67,7 +67,7 @@ def mock_controller(request):
             self.called_amount += 1
             return self.amount >= self.called_amount
 
-        def waittime(self, sample):
+        def get_waittime(self, sample):
             to_emit = None
             if callable(self.waittime_amount):
                 to_emit = self.waittime_amount()

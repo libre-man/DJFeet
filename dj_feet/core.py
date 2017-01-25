@@ -53,7 +53,7 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
         transitioner.write_sample(result)
         print("Wrote to output")
 
-        sleep_time = controller.waittime(new_sample)
+        sleep_time = controller.get_waittime(new_sample)
         print('Going to sleep for {} seconds'.format(sleep_time))
         if sleep_time < 0:
             print(
