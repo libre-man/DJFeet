@@ -67,18 +67,25 @@ def test_write_sample(inf_jukebox_transitioner, _, random_song_file,
     monkeypatch.setattr(librosa.output, 'write_wav', mocking_librosa)
 
     time_series, sr = librosa.load(random_song_file)
+
     inf_jukebox_transitioner.write_sample(time_series)
+    assert len(mocking_librosa.args) == 1
+
+    inf_jukebox_transitioner.write_sample(time_series)
+    assert len(mocking_librosa.args) == 2
     pprint(inf_jukebox_transitioner.output_folder)
 
     assert mocking_librosa.called
-    assert len(mocking_librosa.args) == 1
 
     a = mocking_librosa.args[0][0][1] == time_series
 
     assert hasattr(a, '__iter__') and a.all()
-    assert mocking_librosa.args[0][0][
-        0] == inf_jukebox_transitioner.output_folder
+    assert mocking_librosa.args[0][0][0] == os.path.join(
+        inf_jukebox_transitioner.output_folder, "part0.wav")
     assert mocking_librosa.args[0][1]['sr'] == sr
+
+    assert mocking_librosa.args[1][0][0] == os.path.join(
+        inf_jukebox_transitioner.output_folder, "part1.wav")
 
 
 @pytest.mark.parametrize('same', [True, False])

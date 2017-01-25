@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import librosa
-from pydub import AudioSegment
-from .song import Song
-from tempfile import NamedTemporaryFile
+import os
 import datetime
 import numpy as np
 
@@ -30,6 +28,7 @@ class InfJukeboxTransitioner(Transitioner):
         self.output_folder = output_folder
         self.segment_size = segment_size
         self.segment_delta = datetime.timedelta(seconds=segment_size)
+        self.part_no = 0
         first = False
 
     def merge(self, prev_song, next_song):
@@ -148,6 +147,12 @@ class InfJukeboxTransitioner(Transitioner):
         return final_seg
 
     def write_sample(self, sample):
-        print("Writing {} to {} dir".format(sample, self.output_folder))
+        print("Writing parg {} to {} dir".format(self.part_no,
+                                                 self.output_folder))
         librosa.output.write_wav(
-            self.output_folder, sample, sr=22050, norm=False)
+            os.path.join(self.output_folder,
+                         "part{}.wav".format(self.part_no)),
+            sample,
+            sr=22050,
+            norm=False)
+        self.part_no += 1
