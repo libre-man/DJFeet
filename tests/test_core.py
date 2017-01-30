@@ -201,8 +201,8 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
     if iterations > 0:
         assert patched_post.called
         assert patched_post.args[0][0][0] == my_addr + '/controller_started/'
-        assert patched_post.args[0][1]['data']['id'] == my_id
-        assert patched_post.args[0][1]['data']['epoch'] == now
+        assert patched_post.args[0][1]['json']['id'] == my_id
+        assert patched_post.args[0][1]['json']['epoch'] == now
 
     i = 0
     for prev, new in mock_transitioner.merge_args:

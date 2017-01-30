@@ -42,7 +42,7 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
         else:
             requests.post(
                 remote + "/controller_started/",
-                data={
+                json={
                     'id': app_id,
                     'epoch': int(time.time())
                 })
