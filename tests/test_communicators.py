@@ -2,6 +2,7 @@ import pytest
 import os
 import sys
 import requests
+from collections import namedtuple
 import random
 from helpers import MockingFunction
 
@@ -44,6 +45,9 @@ def test_all_communicators(all_communicators):
     assert callable(all_communicators.get_user_feedback)
     assert all_communicators.get_user_feedback.__code__.co_argcount == 5
 
+    assert callable(all_communicators.iteration)
+    assert all_communicators.iteration.__code__.co_argcount == 4
+
 
 def test_simple_communicator(simple_communicator):
     res = simple_communicator.get_user_feedback(None, None, None, None)
@@ -55,7 +59,8 @@ def test_simple_communicator(simple_communicator):
 @pytest.mark.parametrize('data', [{
     'feedback': ['Wow', random.randint(4000, 5000)]
 }])
-def test_protocol_communicator(protocol_communicator, monkeypatch, data, _):
+def test_protocol_communicator_feedback(protocol_communicator, monkeypatch,
+                                        data, _):
     class MyResponse:
         def json(self):
             return data
@@ -77,5 +82,29 @@ def test_protocol_communicator(protocol_communicator, monkeypatch, data, _):
             'start': start,
             'end': end,
             'id': app_id
+        }
+    })]
+
+
+@pytest.mark.parametrize('_', range(2))
+def test_protocol_communicator_iteration(protocol_communicator, monkeypatch,
+                                         _):
+    filename = str(random.randint(0, 1000)) + 'song_location'
+    file_loc = '/tmp/#sdaas_only/' + filename + '.mp3'
+    my_remote = str(random.randint(1000, 2000)) + 'remote'
+    my_id = str(random.randint(1000, 2000)) + 'id'
+
+    MySong = namedtuple('my_song', 'file_location')
+    a_song = MySong(file_loc)
+    mocked_post_request = MockingFunction()
+    monkeypatch.setattr(requests, 'post', mocked_post_request)
+
+    protocol_communicator.iteration(my_remote, my_id, a_song)
+
+    assert mocked_post_request.called
+    assert mocked_post_request.args == [((my_remote + '/iteration/', ), {
+        'json': {
+            'id': my_id,
+            'filename_mixed': filename,
         }
     })]

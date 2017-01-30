@@ -140,12 +140,30 @@ def mock_communicator():
             self.called_amount = 0
             self.emitted = []
             self.end_time = 0.0
+            self.files = []
+            self.remote = None
+            self.controller_id = None
 
         def get_user_feedback(self, remote, controller_id, start, end):
             self.called_amount += 1
             self.emitted.append(random.random())
             self.end_time = end
             return self.emitted[-1]
+            if self.called_amount == 0:
+                self.controller_id = controller_id
+                self.remote = remote
+            else:
+                assert self.controller_id == controller_id
+                assert self.remote == remote
+
+        def iteration(self, remote, controller_id, file_mixed):
+            self.files.append(file_mixed)
+            if self.called_amount == 0:
+                self.controller_id = controller_id
+                self.remote = remote
+            else:
+                assert self.controller_id == controller_id
+                assert self.remote == remote
 
     yield MockCommunicator()
 
@@ -189,6 +207,7 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
     assert len(mock_communicator.emitted) == max(
         len(mock_picker.feedback) - 4, 0)
     assert mock_communicator.emitted == mock_picker.feedback[4:]
+    assert mock_communicator.files == mock_picker.emitted
 
     assert (not mock_picker.feedback) or mock_picker.feedback[0] == {}
 
