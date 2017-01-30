@@ -40,21 +40,16 @@ def test_process_data(process_base_song):
 
 
 @pytest.mark.parametrize(
-    "begin,amount,size",
-    [(True, 1, 30), (False, 2, 15), (True, 2, 15), (True, 30, 1)])
-def test_next_segment(process_base_song, begin, amount, size):
+    "begin,size",
+    [(True, 30), (False, 15), (True, 15), (True, 1)])
+def test_next_segment(process_base_song, begin, size):
     start, end = librosa.core.time_to_samples(
         numpy.array([0, size]), process_base_song.sampling_rate)
     delta = end - start
-    for x in range(amount):
-        out = process_base_song.next_segment(size, begin=begin)
-        if x == 0 and begin:
-            assert out[0] == 0
-        elif x > 0:
-            assert out[0] != 0
-        assert out[0] < out[1]
-        assert delta == out[1] - out[0]
-        begin = False
+    out = process_base_song.next_segment(size, begin=begin)
+    assert out[0] == 0
+    assert out[0] < out[1]
+    assert delta == out[1] - out[0]
 
 
 @pytest.mark.parametrize("start,frames,expected",
