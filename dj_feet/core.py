@@ -15,7 +15,8 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
     while controller.should_continue():
         if len(merge_times) == 4:
             start, end = merge_times.pop(0)
-            feedback = communicator.get_user_feedback(start, end)
+            feedback = communicator.get_user_feedback(remote, app_id, start,
+                                                      end)
         else:
             feedback = {}
 
@@ -38,13 +39,13 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
             merge_times[-1].append(segment_size * i + merge_offset)
 
             # Now insert the starting time of the new segment
-            merge_times.append([merge_offset])
+            merge_times.append([segment_size * i + merge_offset])
         else:
             requests.post(
                 remote + "/controller_started/",
                 json={
                     'id': app_id,
-                    'epoch': int(time.time())
+                    'epoch': int(time.time()),
                 })
             merge_times.append([0])
             segment_size = merge_offset

@@ -89,8 +89,7 @@ class InfJukeboxTransitioner(Transitioner):
                                   transition)
             next_part = next_song.time_series[next_frame:final_frame]
             song_array = np.append(prev_part, next_part)
-            merge_time = datetime.timedelta(seconds=next_song.time_delta(
-                seg_start, prev_frame))
+            merge_time = next_song.time_delta(seg_start, prev_frame)
             return (song_array, merge_time)
 
     def combine_similar_frames(self, prev_song, next_song, seg_start, seg_end):
