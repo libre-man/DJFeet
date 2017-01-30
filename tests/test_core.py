@@ -141,7 +141,7 @@ def mock_communicator():
             self.emitted = []
             self.end_time = 0.0
 
-        def get_user_feedback(self, start, end):
+        def get_user_feedback(self, remote, controller_id, start, end):
             self.called_amount += 1
             self.emitted.append(random.random())
             self.end_time = end
