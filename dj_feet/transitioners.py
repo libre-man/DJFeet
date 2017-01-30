@@ -3,6 +3,8 @@ import librosa
 import os
 import datetime
 import numpy as np
+import tempfile
+import pydub
 
 
 class Transitioner:
@@ -149,10 +151,12 @@ class InfJukeboxTransitioner(Transitioner):
     def write_sample(self, sample):
         print("Writing parg {} to {} dir".format(self.part_no,
                                                  self.output_folder))
-        librosa.output.write_wav(
-            os.path.join(self.output_folder,
-                         "part{}.wav".format(self.part_no)),
-            sample,
-            sr=22050,
-            norm=False)
+        with tempfile.NamedTemporaryFile() as wavfile:
+            mp3file = os.path.join(self.output_folder,
+                                   "part{}.mp3".format(self.part_no))
+            librosa.output.write_wav(
+                wavfile.name, sample, sr=22050, norm=False)
+            wavfile.flush()
+            pydub.AudioSegment.from_wav(wavfile.name).export(
+                mp3file, format='mp3')
         self.part_no += 1
