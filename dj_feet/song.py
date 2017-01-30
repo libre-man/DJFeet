@@ -30,7 +30,6 @@ class Song:
         else:
             time_vector = np.array(
                 [self.curr_time, segment_size + self.curr_time])
-        self.curr_time += segment_size
 
         start, end = librosa.core.time_to_samples(time_vector,
                                                   self.sampling_rate)
