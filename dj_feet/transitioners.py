@@ -62,7 +62,7 @@ class InfJukeboxTransitioner(Transitioner):
             # If it is the same song, return the next segment.
             next_song.curr_time = prev_song.curr_time + self.segment_size
             return (prev_song.time_series[seg_start:seg_end],
-                    datetime.timedelta(seconds=self.segment_size))
+                    self.segment_size)
         else:
             print("Merging the two different songs")
             # If it's not the same song, compare both songs and find similar
