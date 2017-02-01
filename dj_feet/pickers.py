@@ -439,8 +439,7 @@ class NCAPicker(Picker):
             self.reset_songs()
 
         if self.current_song is None:  # First pick, simply select random
-            next_song = random.choice(list(self.song_files if force else
-                                           self.all_but_current_song()))
+            next_song = random.choice(self.song_files)
         else:
             next_song = self._find_next_song(force)
 
