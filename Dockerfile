@@ -15,7 +15,7 @@ RUN eval $(ssh-agent -s) && \
     mkdir -p ~/.ssh && \
     [ -f /.dockerenv ] && \
     printf "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config && \
-    git clone git@gitlab.com:SilentDiscoAsAService/DJFeet.git /home/dj_feet/DJFeet
+    git clone git@github.com:libre-man/DJFeet.git /home/dj_feet/DJFeet
 
 RUN cd /home/dj_feet/DJFeet && \
     make setup && \
