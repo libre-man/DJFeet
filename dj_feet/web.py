@@ -14,6 +14,7 @@ import dj_feet.core as core
 from .config import Config
 from .helpers import get_args
 
+logging.basicConfig(level=logging.DEBUG)
 l = logging.getLogger(__name__)
 
 
@@ -74,8 +75,6 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
         cfg.FIXED_OPTIONS['song_folder'] = wav_dir
         cfg.FIXED_OPTIONS['output_folder'] = output_dir
         ultra = False
-
-        l.basicConfig(level=l.DEBUG)
 
         try:
             while True:
@@ -147,7 +146,8 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
             l.fatal("Got exception %s", traceback.format_exc())
             raise exp
         finally:
-            l.critical("Quiting the backend worker.")
+            l.critical("Quiting the backend worker, notifying remote (%s).",
+                       remote)
             if remote is not None:
                 requests.post(
                     remote + '/' + ('ultra_' if ultra else '') + 'died/',
