@@ -8,6 +8,12 @@ import pydub
 
 
 class Transitioner:
+    """This is the base Transitioner class.
+
+    You should not use this class directly but should inherit from this class
+    if you want to implement a new picker. A subclass should override all
+    public methods of this class.
+    """
     def __init__(self):
         pass
 
@@ -26,6 +32,13 @@ class Transitioner:
 
 
 class InfJukeboxTransitioner(Transitioner):
+    """A Transitioner based on the Infinite Jukebox concept.
+
+    This Transioner merges two distinct songs to form a song part containing a
+    smooth transition between both songs. To achieve this, a similar beat in
+    both songs is found (beatmatching). This beat is ultimately the transition
+    between the songs, this is created by a coarse fade.
+    """
     def __init__(self, output_folder, segment_size=30):
         self.output_folder = output_folder
         self.segment_size = segment_size
