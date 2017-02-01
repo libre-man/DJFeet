@@ -5,7 +5,7 @@ python:
   - "3.6"
 # command to install dependencies
 before_install:
-  - apt update -qy
+  - apt-get update -qy
   - apt-get install -y expect
   - pip install --upgrade pip
   - make test_setup
