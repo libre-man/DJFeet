@@ -6,6 +6,8 @@ from functools import wraps
 import queue
 import requests
 import pydub
+import logging as l
+import traceback
 
 import dj_feet.pickers as pickers
 import dj_feet.core as core
@@ -71,17 +73,21 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
         cfg.FIXED_OPTIONS['output_folder'] = output_dir
         ultra = False
 
+        l.basicConfig(level=l.DEBUG)
+
         try:
             while True:
                 out = worker_queue.get()
                 task, *args = out
 
-                print("Got a {} command".format(task))
+                l.info("Got a command: %d", task)
 
                 if task == PROCESS_SONG:
                     mp3_file_location, file_id, *args = args
                     filename, _ = os.path.splitext(
                         os.path.basename(mp3_file_location))
+                    l.debug("Processing %s", filename)
+
                     song = pydub.AudioSegment.from_mp3(mp3_file_location)
                     wav_file_location = os.path.join(wav_dir,
                                                      (filename + '.wav'))
@@ -104,6 +110,8 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                     mp3_file_location, file_id, *args = args
                     filename, _ = os.path.splitext(
                         os.path.basename(mp3_file_location))
+                    l.debug("Deleting %s", filename)
+
                     song = pydub.AudioSegment.from_mp3(mp3_file_location)
                     wav_file_location = os.path.join(wav_dir,
                                                      (filename + '.wav'))
@@ -113,6 +121,8 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                         remote + '/music_deleted/', json={'id': file_id})
 
                 elif task == START_LOOP:
+                    l.debug("Started loop with id %d and %s as remote", app_id,
+                            remote)
                     core.loop(app_id, remote,
                               cfg.get_controller(),
                               cfg.get_picker(),
@@ -129,19 +139,19 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
                     return
         except MemoryError as exp:
             ultra = True
-            print("Got a memory error, dying to the max!")
+            l.fatal("Got a memory error, dying to the max!")
             raise exp
         except Exception as exp:
-            print("Got exception {}!".format(exp))
+            l.fatal("Got exception %s", traceback.format_exc())
             raise exp
         finally:
-            print("Quiting the backend worker!!!!!")
+            l.critical("Quiting the backend worker.")
             if remote is not None:
                 requests.post(
                     remote + '/' + ('ultra_' if ultra else '') + 'died/',
                     json={'id': app_id})
             else:
-                print("Remote is None!")
+                l.fatal("Remote is None!")
 
 
 def needs_options(f):

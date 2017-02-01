@@ -11,7 +11,7 @@ import numpy
 from sklearn.decomposition import PCA
 from copy import copy
 import scipy
-from pprint import pprint
+import logging as l
 
 
 class Picker:
@@ -215,19 +215,19 @@ class NCAPicker(Picker):
         :return: A tuple of the mfcc and tempo in this order.
         :rtype: tuple
         """
-        print("Loading MFCC and tempo variables from {}".format(song_file))
+        l.info("Loading MFCC and tempo variables from %s.", song_file)
         mfcc, tempo = NCAPicker.get_mfcc_and_tempo(song_file, mfcc_amount)
-        print("Loaded mfcc and tempo. Writing mfcc.")
+        l.debug("Loaded mfcc and tempo. Writing mfcc.")
 
         filename, _ = os.path.splitext(os.path.basename(song_file))
         cache_file = os.path.join(cache_dir, filename)
         numpy.save(cache_file + "_mfcc", mfcc)
-        print("Done writing mfcc, writing tempo.")
+        l.debug("Done writing mfcc, writing tempo.")
         numpy.save(cache_file + "_tempo", tempo)
-        print("Done writing tempo. Touching done file.")
+        l.debug("Done writing tempo. Touching done file.")
         with open(cache_file + "_done", "w+"):
             pass
-        print("Done with processing {}".format(song_file))
+        l.info("Done with processing %s.", song_file)
 
         return mfcc, tempo
 
@@ -254,8 +254,10 @@ class NCAPicker(Picker):
         # Calculate the average 20D feature vector for the mfccs
         for song_file in self.song_files:
             filename, _ = os.path.splitext(os.path.basename(song_file))
+            l.debug("Currently loading %s.", filename)
             if cache_dir and os.path.isfile(
                     os.path.join(cache_dir, filename + "_done")):
+                l.debug("Loading our song from cache.")
                 mfcc = numpy.load(
                     os.path.join(cache_dir, filename + "_mfcc") + os.extsep +
                     'npy')
@@ -263,6 +265,7 @@ class NCAPicker(Picker):
                     os.path.join(cache_dir, filename + "_tempo") + os.extsep +
                     'npy')
             else:
+                l.debug("Song not found in cache, processing it.")
                 if cache_dir:
                     mfcc, tempo = self.process_song_file(mfcc_amount,
                                                          cache_dir, song_file)
@@ -313,6 +316,7 @@ class NCAPicker(Picker):
 
         :rtype: None
         """
+        l.debug("Resetting songs.")
         self.song_files = copy(self._song_files)
 
     @staticmethod
@@ -410,6 +414,8 @@ class NCAPicker(Picker):
             old = self.picked_songs.pop(0)
             if old != self.picked_songs[-4]:
                 new = self.picked_songs[-4]
+                l.debug("Trying to interpreted user feedback from %s to %s.",
+                        old, new)
                 user_feedback.update({"old": old, "new": new})
                 self.done_transitions.append(
                     (old, new, self.get_feedback(user_feedback)))
@@ -442,6 +448,8 @@ class NCAPicker(Picker):
         by chance. Based on this paper:
         http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
         """
+        l.debug("Finding song by using NCA.")
+
         max_dst = 0
         filter_songs = force_hard < 2
         for song_file in self.all_but_current_song(filter_songs=filter_songs):
@@ -494,7 +502,16 @@ class NCAPicker(Picker):
             for song_file, chance in chances:
                 if random.random() < chance:
                     next_song = song_file
+                    l.debug("Found next_song %s, its change was %d", next_song,
+                            chance)
                     break
+            else:
+                continue
+            # Make sure we actually break the OUTER loop
+            break
+        else:
+            l.critical("Terminated simulating odds without finding," +
+                       " picking song with highest odds (%s).", next_song)
         return next_song
 
     @staticmethod
@@ -515,6 +532,8 @@ class NCAPicker(Picker):
         return chances
 
     def _optimize_weights(self):
+        l.debug("Optimize the current weights.")
+
         def func_to_optimize(weights):
             feedback_dsts = list()
             feedback_chances = list()
@@ -567,5 +586,7 @@ class NCAPicker(Picker):
         for song_file in self.song_files:
             _, _unused, other_tempo = self.song_properties[song_file]
             tempo_offset = abs(base_tempo - other_tempo)
-            if (self.max_tempo_percent / 100) * other_tempo > tempo_offset:
+            if tempo_factor * other_tempo > tempo_offset:
                 yield song_file
+            else:
+                l.debug("Discarding %s because of its tempo.", song_file)
