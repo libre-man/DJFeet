@@ -6,13 +6,15 @@ from functools import wraps
 import queue
 import requests
 import pydub
-import logging as l
+import logging
 import traceback
 
 import dj_feet.pickers as pickers
 import dj_feet.core as core
 from .config import Config
 from .helpers import get_args
+
+l = logging.getLogger(__name__)
 
 
 class MyFlask(Flask):
