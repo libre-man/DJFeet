@@ -146,7 +146,8 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
             l.fatal("Got exception %s", traceback.format_exc())
             raise exp
         finally:
-            l.critical("Quiting the backend worker.")
+            l.critical("Quiting the backend worker, notifying remote (%s).",
+                       remote)
             if remote is not None:
                 requests.post(
                     remote + '/' + ('ultra_' if ultra else '') + 'died/',
