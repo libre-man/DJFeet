@@ -132,7 +132,7 @@ class NCAPicker(Picker):
                  weights=None,
                  feedback_method='default',
                  max_tempo_percent=None):
-        """Create a new NCAPicker instance
+        """Create a new NCAPicker instance.
 
         :param song_folder: The folder of the wav file to use for merging.
         :type song_folder: string

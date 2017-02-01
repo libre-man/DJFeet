@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import librosa
 import os
 import datetime
@@ -15,17 +16,30 @@ class Transitioner:
     public methods of this class.
     """
     def __init__(self):
+        """The initializer of the base Transitioner class.
+
+        This function does nothing at the moment
+        """
         pass
 
     def merge(self, prev_song, next_song):
-        """
-        Prev_song and next_song both need to be song objects.
+        """Merge two given songs to one sample / part.
+
+        :param prev_song: The song that is currently playing.
+        :type prev_song: dj_feet.song.Song
+        :param next_song: The song to play next, after prev_song. To not change
+                          songs, next_song should be the same as prev_song.
+        :type next_song: dj_feet.song.Song
+        :rtype: (dj_feet.song.Song, int)
         """
         raise NotImplementedError(
             "This function should be overridden by the subclass")
 
     def write_sample(self, sample):
         """Write the given sample to the output stream.
+
+        :param sample: The created part / sample to write.
+        :type sample: np.array
         """
         raise NotImplementedError(
             "This function should be overridden by the subclass")
@@ -40,19 +54,35 @@ class InfJukeboxTransitioner(Transitioner):
     between the songs, this is created by a coarse fade.
     """
     def __init__(self, output_folder, segment_size=30):
+        """Create a new InfJukeboxTransitioner instance.
+
+        :param output_folder: The folder to write the new part to.
+        :type output_folder: string
+        :param segment_size: The length (in seconds) of a part. (default=30)
+        :type segment_size: int
+        """
         self.output_folder = output_folder
         self.segment_size = segment_size
         self.segment_delta = datetime.timedelta(seconds=segment_size)
         self.part_no = 0
 
     def merge(self, prev_song, next_song):
-        """
-        Given two song objects, find the most similar frame in the upcoming
-        segments and transition the songs at that frame creating new
-        segment.
-        Returns the next segment to stream.
-        Note: next_song can be the same as prev_song, the next segment of this
-              song is returned in this case.
+        """Merge two songs together.
+
+        Given two songs, a new part / sample will be created with a transition
+        of these songs. If both given songs are the same, no transition will be
+        needed. If they are not, the best beat is found using beatmatching and
+        both songs are merged at this beat using coarse fading. This function
+        will return a tuple containg the new part and the time (in seconds from
+        the beginning of the part) the transition takes place. (so, that 30 -
+        this time is the length of the next song played in the created part)
+
+        :param prev_song: The song that is currently playing.
+        :type prev_song: dj_feet.song.Song
+        :param next_song: The song to play next, after prev_song. To not change
+                          songs, next_song should be the same as prev_song.
+        :type next_song: dj_feet.song.Song
+        :rtype: (np.array, int)
         """
         if prev_song is None:
             print('Doing the first merge.')
@@ -109,11 +139,25 @@ class InfJukeboxTransitioner(Transitioner):
 
     def combine_similar_frames(self, prev_song, next_song, seg_start, seg_end):
         """
+        Find the two most familiar beats in two given songs (beatmatching).
+
         Find a similar frame in the previous (current) and the next song. Only
         frames in the next segment of the current song and the first segment
-        of the next song will be taken into account.
+        of the next song will be taken into account. Similarities between
+        beats are compared and approximated using cross correlation.
         Returns a tuple of the frames (frame_prev_song, frame_next_song) that
-        are found most similar.
+        are found most similar. In addition it returns an the created
+        transition.
+
+        :param prev_song: The song that is currently playing.
+        :type prev_song: dj_feet.song.Song
+        :param next_song: The song to play next, after prev_song.
+        :type next_song: dj_feet.song.Song
+        :param seg_start: The first sample of the next segment of prev_song.
+        :type seg_start: int
+        :param seg_end: The final sample of the next segment of prev_song.
+        :type seg_end: int
+        :rtype: (np.array, int, int)
         """
         prev_bt = prev_song.beat_tracks_in_segment(seg_start, seg_end)
         next_start, next_end = next_song.next_segment(
@@ -142,8 +186,25 @@ class InfJukeboxTransitioner(Transitioner):
         return transition, prev_bt[highest_p - 1], next_bt[highest_n + 1]
 
     def fade_frames(self, prev_song, prev_bt, p, next_song, next_bt, n):
-        """
-        Lineare crossfade
+        """Create a transition between two songs given a matching beat.
+
+        Use coarse fading to create a (smooth) transition between two songs
+        given a beat that matches in both songs. An array containing the
+        created transition will be returned.
+
+        :param prev_song: The song that is currently playing.
+        :type prev_song: dj_feet.song.Song
+        :param prev_bt: Array containing beat indices of prev_song.
+        :type prev_bt: int array
+        :param p: The index of the beat (found by beatmatching) of prev_song.
+        :type p: int
+        :param next_song: The song to play next, after prev_song.
+        :type next_song: dj_feet.song.Song
+        :param next_bt: Array containing beat indices of next_song.
+        :type next_bt: int array
+        :param n: The index of the beat (found by beatmatching) of next_song.
+        :type n: int
+        :rtype: np.array
         """
         prev_seg = prev_song.time_series[prev_bt[p]:prev_bt[p + 1]]
         next_seg = next_song.time_series[next_bt[n]:next_bt[n + 1]]
@@ -162,6 +223,15 @@ class InfJukeboxTransitioner(Transitioner):
         return final_seg
 
     def write_sample(self, sample):
+        """Write the given sample to the output stream.
+
+        Write a given sample to the output stream. This is defined by the set
+        output folder when intializing the InfJukeboxTransitioner instance. As
+        a side-effect, a WAV file will be written in addition to the MP3 file.
+
+        :param sample: The created part / sample to write.
+        :type sample: np.array
+        """
         print("Writing parg {} to {} dir".format(self.part_no,
                                                  self.output_folder))
         with tempfile.NamedTemporaryFile() as wavfile:
