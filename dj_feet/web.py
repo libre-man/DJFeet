@@ -73,6 +73,8 @@ def backend_worker(worker_queue, remote, app_id, output_dir):
         cfg.FIXED_OPTIONS['output_folder'] = output_dir
         ultra = False
 
+        l.basicConfig(level=l.DEBUG)
+
         try:
             while True:
                 out = worker_queue.get()
