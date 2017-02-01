@@ -5,15 +5,10 @@ python:
   - "3.6"
 # command to install dependencies
 
-sudo: required
-
 before_install:
-  - sudo apt-get update -qy
-  - sudo apt-get install -y expect python3-pip
-  - sudo pip install --upgrade pip
-  - sudo make test_setup
+  - make test_setup
 install:
-  - sudo make setup
+  - make setup
 # command to run tests
 
 cache:

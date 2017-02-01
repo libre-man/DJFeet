@@ -3,6 +3,11 @@ setup:
 	pip3 install -r requirements.txt
 	python3 setup.py install
 
+travis_setup:
+	pip install --user --upgrade numpy
+	pip install --user -r requirements.txt
+	python3 setup.py install --user
+
 clean:
 	-rm -r /tmp/sdaas
 
