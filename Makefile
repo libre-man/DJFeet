@@ -7,7 +7,7 @@ travis_setup:
 	pip install --upgrade pip setuptools wheel
 	pip install --only-binary=scipy scipy
 	pip install -r requirements.txt
-	python3 setup.py install --user
+	pip install .
 
 clean:
 	-rm -r /tmp/sdaas
