@@ -133,7 +133,8 @@ class NCAPicker(Picker):
                  cache_dir=None,
                  weights=None,
                  feedback_method='default',
-                 max_tempo_percent=None):
+                 max_tempo_percent=None,
+                 max_force_streak=10):
         """Create a new NCAPicker instance.
 
         :param song_folder: The folder of the wav file to use for merging.
@@ -157,6 +158,10 @@ class NCAPicker(Picker):
         :param max_tempo_percent: The maximum percentage the tempo of a new
                                   song can differ from the tempo of the current
                                   song.
+        :param int max_force_streak: The maximum number of successive calls to
+                                     `get_next_song` before we should reset all
+                                     the songs to start using already used
+                                     songs.
         :type max_tempo_percent: int
         """
         super(NCAPicker, self).__init__()
@@ -200,6 +205,8 @@ class NCAPicker(Picker):
         self.current_song = None
         self.multiplier = current_multiplier
         self.streak = 0
+        self.force_streak = 0
+        self.max_force_streak = max_force_streak
 
     @staticmethod
     def process_song_file(mfcc_amount, cache_dir, song_file):
@@ -423,9 +430,17 @@ class NCAPicker(Picker):
                     (old, new, self.get_feedback(user_feedback)))
                 self._optimize_weights()
 
+        if force:
+            self.force_streak += 1
+        else:
+            self.force_streak = 0
+
+        if self.force_streak > self.max_force_streak:
+            self.reset_songs()
+
         if self.current_song is None:  # First pick, simply select random
-            next_song = random.choice(self.all_but_current_song()
-                                      if force else self.song_files)
+            next_song = random.choice(self.song_files if force else
+                                      self.all_but_current_song())
         else:
             next_song = self._find_next_song(force)
 
@@ -444,7 +459,7 @@ class NCAPicker(Picker):
         self.current_song = next_song
         return Song(next_song)
 
-    def _find_next_song(self, force, force_hard=0):
+    def _find_next_song(self, force):
         """Find the next song by getting the distance between the current and
         the potential song, doing softmax with these distances and getting one
         by chance. Based on this paper:
@@ -453,7 +468,7 @@ class NCAPicker(Picker):
         l.debug("Finding song by using NCA.")
 
         max_dst = 0
-        filter_songs = force_hard < 2
+        filter_songs = self.force_streak < 2
         for song_file in self.all_but_current_song(filter_songs=filter_songs):
             # calc distance between song_file and current_song
             dst = self.song_distances[self.current_song][song_file]
@@ -491,7 +506,8 @@ class NCAPicker(Picker):
 
         if not chances:
             self.reset_songs()
-            return self._find_next_song(force, force_hard=force_hard + 1)
+            self.force_streak += 1
+            return self._find_next_song(force)
 
         # Sort the chances by descending chance
         chances.sort(key=lambda x: x[1])
