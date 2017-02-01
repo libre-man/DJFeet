@@ -5,8 +5,10 @@ import os
 import datetime
 import numpy as np
 import tempfile
-import logging as l
+import logging
 import pydub
+
+l = logging.getLogger(__name__)
 
 
 class Transitioner:

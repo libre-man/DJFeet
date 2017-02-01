@@ -2,7 +2,9 @@
 import sys
 import time
 import requests
-import logging as l
+import logging
+
+l = logging.getLogger(__name__)
 
 
 def loop(app_id, remote, controller, picker, transitioner, communicator):

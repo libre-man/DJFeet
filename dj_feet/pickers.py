@@ -11,7 +11,9 @@ import numpy
 from sklearn.decomposition import PCA
 from copy import copy
 import scipy
-import logging as l
+import logging
+
+l = logging.getLogger(__name__)
 
 
 class Picker:
