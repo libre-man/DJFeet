@@ -5,11 +5,19 @@ from helpers import MockingFunction
 import time
 import random
 import datetime
+import requests
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
 
 import dj_feet.core as core
+
+
+@pytest.fixture
+def patched_post(monkeypatch):
+    mocked_post = MockingFunction()
+    monkeypatch.setattr(requests, 'post', mocked_post)
+    yield mocked_post
 
 
 @pytest.fixture
@@ -59,7 +67,7 @@ def mock_controller(request):
             self.called_amount += 1
             return self.amount >= self.called_amount
 
-        def waittime(self, sample):
+        def get_waittime(self, sample):
             to_emit = None
             if callable(self.waittime_amount):
                 to_emit = self.waittime_amount()
@@ -90,7 +98,7 @@ def mock_exception_transitioner():
             self.out = random.random()
             return self.out, 30
 
-        def write(self, sample):
+        def write_sample(self, sample):
             assert sample == self.out
 
     yield MockTransitioner()
@@ -119,7 +127,7 @@ def mock_transitioner():
             self.merge_times.append(new_time)
             return to_emit, new_time
 
-        def write(self, sample):
+        def write_sample(self, sample):
             self.write_args.append(sample)
 
     yield MockTransitioner()
@@ -132,31 +140,52 @@ def mock_communicator():
             self.called_amount = 0
             self.emitted = []
             self.end_time = 0.0
+            self.files = []
+            self.remote = None
+            self.controller_id = None
 
-        def get_user_feedback(self, start, end):
+        def get_user_feedback(self, remote, controller_id, start, end):
             self.called_amount += 1
             self.emitted.append(random.random())
             self.end_time = end
             return self.emitted[-1]
+            if self.called_amount == 0:
+                self.controller_id = controller_id
+                self.remote = remote
+            else:
+                assert self.controller_id == controller_id
+                assert self.remote == remote
+
+        def iteration(self, remote, controller_id, file_mixed):
+            self.files.append(file_mixed)
+            if self.called_amount == 0:
+                self.controller_id = controller_id
+                self.remote = remote
+            else:
+                assert self.controller_id == controller_id
+                assert self.remote == remote
 
     yield MockCommunicator()
 
 
 def test_loop_excpetion(monkeypatch, mock_controller, mock_forcing_picker,
-                        mock_exception_transitioner, mock_communicator,
-                        capsys):
+                        mock_exception_transitioner, mock_communicator, capsys,
+                        patched_post):
     mock_sleep = MockingFunction(lambda: None, simple=True)
     monkeypatch.setattr(time, 'sleep', mock_sleep)
-    core.loop(mock_controller, mock_forcing_picker,
+    core.loop(0, 'localhost', mock_controller, mock_forcing_picker,
               mock_exception_transitioner, mock_communicator)
     _, err = capsys.readouterr()
 
 
 def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
-              mock_communicator, capsys):
+              mock_communicator, capsys, patched_post):
     mock_sleep = MockingFunction(lambda: None, simple=True)
     monkeypatch.setattr(time, 'sleep', mock_sleep)
-    core.loop(mock_controller, mock_picker, mock_transitioner,
+    now = int(time.time())
+    my_id = random.randint(1, 10010101)
+    my_addr = str(random.random()) + "/local"
+    core.loop(my_id, my_addr, mock_controller, mock_picker, mock_transitioner,
               mock_communicator)
     _, err = capsys.readouterr()
 
@@ -178,14 +207,21 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
     assert len(mock_communicator.emitted) == max(
         len(mock_picker.feedback) - 4, 0)
     assert mock_communicator.emitted == mock_picker.feedback[4:]
+    assert mock_communicator.files == mock_picker.emitted
 
     assert (not mock_picker.feedback) or mock_picker.feedback[0] == {}
 
-    if mock_controller.amount > 4:
+    if iterations > 4:
         correct_time = mock_transitioner.max_size * (
             iterations - 4) + mock_transitioner.merge_times[-4]
         assert mock_communicator.end_time == correct_time
         assert isinstance(mock_communicator.end_time, float)
+
+    if iterations > 0:
+        assert patched_post.called
+        assert patched_post.args[0][0][0] == my_addr + '/controller_started/'
+        assert patched_post.args[0][1]['json']['id'] == my_id
+        assert patched_post.args[0][1]['json']['epoch'] == now
 
     i = 0
     for prev, new in mock_transitioner.merge_args:

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import librosa
-from pydub import AudioSegment
-from .song import Song
-from tempfile import NamedTemporaryFile
+import os
 import datetime
 import numpy as np
+import tempfile
+import pydub
 
 
 class Transitioner:
@@ -26,11 +26,11 @@ class Transitioner:
 
 
 class InfJukeboxTransitioner(Transitioner):
-    def __init__(self, output, segment_size=30):
-        self.output = output
+    def __init__(self, output_folder, segment_size=30):
+        self.output_folder = output_folder
         self.segment_size = segment_size
         self.segment_delta = datetime.timedelta(seconds=segment_size)
-        first = False
+        self.part_no = 0
 
     def merge(self, prev_song, next_song):
         """
@@ -41,21 +41,30 @@ class InfJukeboxTransitioner(Transitioner):
         Note: next_song can be the same as prev_song, the next segment of this
               song is returned in this case.
         """
+        if prev_song is None:
+            print('Doing the first merge.')
+            prev_song = next_song
+
         # Check whether the previous song still has segment size of time left
         if not prev_song.segment_size_left(self.segment_size):
+            print("Song time exceeded")
             raise ValueError("Song time exceeded")
 
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
         seg_start, seg_end = prev_song.next_segment(self.segment_size)
 
+        print("Going from {} to {} segments".format(seg_start, seg_end))
+
         # Check if the next song is the same as the current song.
-        if prev_song.file_location is next_song.file_location:
+        if prev_song.file_location == next_song.file_location:
+            print("Merging the same songs: appending")
             # If it is the same song, return the next segment.
-            return prev_song.time_series[seg_start:
-                                         seg_end], datetime.timedelta(
-                                             seconds=self.segment_size)
+            next_song.curr_time = prev_song.curr_time + self.segment_size
+            return (prev_song.time_series[seg_start:seg_end],
+                    self.segment_size)
         else:
+            print("Merging the two different songs")
             # If it's not the same song, compare both songs and find similar
             # frames to transition on. These are looked for in the upcoming
             # segment of the current song and the first *segment_size* of the
@@ -66,23 +75,24 @@ class InfJukeboxTransitioner(Transitioner):
             # When a frame to transition on in the current song is found,
             # calculate the time (in seconds) that is between the start of the
             # next segment of this song and the found frame.
-            prev_song_time = prev_song.time_delta(seg_start, prev_frame)
+            prev_song_time_delta = prev_song.time_delta(seg_start, prev_frame)
 
             # When above time in seconds is found, it can be subtracted from
             # the segment size to find the remaining time to be filled by the
             # next song. Now calculate to what frame the next song should go.
-            # TODO: This doesn't work if we merged song $X to song $X and after
-            # this we merge $X to song $Y as we take a segment here of the sart
-            # of song $X.
+
             final_frame = next_song.frame_to_segment_time(
-                self.segment_size - prev_song_time, next_frame)
+                self.segment_size - prev_song_time_delta, next_frame)
+
+            next_song.curr_time = next_song.time_delta(0, final_frame)
 
             # TODO: No errors with mixing frames / segments?
-            return np.append(
-                np.append(prev_song.time_series[seg_start:prev_frame],
-                          transition), next_song.time_series[
-                              next_frame:final_frame]), datetime.timedelta(
-                                  seconds=next_song.time_delta(0, next_frame))
+            prev_part = np.append(prev_song.time_series[seg_start:prev_frame],
+                                  transition)
+            next_part = next_song.time_series[next_frame:final_frame]
+            song_array = np.append(prev_part, next_part)
+            merge_time = next_song.time_delta(seg_start, prev_frame)
+            return (song_array, merge_time)
 
     def combine_similar_frames(self, prev_song, next_song, seg_start, seg_end):
         """
@@ -139,4 +149,14 @@ class InfJukeboxTransitioner(Transitioner):
         return final_seg
 
     def write_sample(self, sample):
-        librosa.output.write_wav(self.output, sample, sr=22050, norm=False)
+        print("Writing parg {} to {} dir".format(self.part_no,
+                                                 self.output_folder))
+        with tempfile.NamedTemporaryFile() as wavfile:
+            mp3file = os.path.join(self.output_folder,
+                                   "part{}.mp3".format(self.part_no))
+            librosa.output.write_wav(
+                wavfile.name, sample, sr=22050, norm=False)
+            wavfile.flush()
+            pydub.AudioSegment.from_wav(wavfile.name).export(
+                mp3file, format='mp3')
+        self.part_no += 1

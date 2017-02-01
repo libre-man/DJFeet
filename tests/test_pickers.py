@@ -13,6 +13,7 @@ my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
 
 import dj_feet.song
+import dj_feet.helpers
 import dj_feet.pickers as pickers
 from dj_feet.helpers import get_all_subclasses
 
@@ -77,6 +78,11 @@ def test_all_pickers(all_pickers):
     assert issubclass(all_pickers, pickers.Picker)
     assert callable(all_pickers.get_next_song)
     assert all_pickers.get_next_song.__code__.co_argcount == 3
+
+    assert callable(all_pickers.process_song_file)
+    for var in dj_feet.helpers.get_args(all_pickers.process_song_file):
+        if var != 'song_file':
+            assert var in dj_feet.helpers.get_args(all_pickers.__init__)
 
 
 def test_simple_picker_no_files_left(monkeypatch, simple_picker):
