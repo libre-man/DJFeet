@@ -8,13 +8,13 @@ python:
 before_install:
   - make test_setup
 install:
-  - make setup
+  - make travis_setup
 # command to run tests
 
-cache: pip
 cache:
-  directories:
-    - tests/test_data_songs
+  - pip
+  - directories:
+      - tests/test_data_songs
 
 script:
   - | # Download if needed
