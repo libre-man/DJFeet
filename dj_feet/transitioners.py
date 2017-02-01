@@ -4,6 +4,7 @@ import os
 import datetime
 import numpy as np
 import tempfile
+import logging as l
 import pydub
 
 
@@ -42,29 +43,32 @@ class InfJukeboxTransitioner(Transitioner):
               song is returned in this case.
         """
         if prev_song is None:
-            print('Doing the first merge.')
+            if self.part_no > 0:
+                l.critical('prev_song was None while part_no was > 0')
+            else:
+                l.debug('This is the first merge.')
             prev_song = next_song
 
         # Check whether the previous song still has segment size of time left
         if not prev_song.segment_size_left(self.segment_size):
-            print("Song time exceeded")
+            l.critical("Song time exceeded by %s.", prev_song.file_location)
             raise ValueError("Song time exceeded")
 
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
         seg_start, seg_end = prev_song.next_segment(self.segment_size)
 
-        print("Going from {} to {} segments".format(seg_start, seg_end))
+        l.info("Going from %d to %d index in prev_song", seg_start, seg_end)
 
         # Check if the next song is the same as the current song.
         if prev_song.file_location == next_song.file_location:
-            print("Merging the same songs: appending")
+            l.debug("Merging the same songs: appending")
             # If it is the same song, return the next segment.
             next_song.curr_time = prev_song.curr_time + self.segment_size
             return (prev_song.time_series[seg_start:seg_end],
                     self.segment_size)
         else:
-            print("Merging the two different songs")
+            l.info("Merging the two different songs.")
             # If it's not the same song, compare both songs and find similar
             # frames to transition on. These are looked for in the upcoming
             # segment of the current song and the first *segment_size* of the
@@ -92,6 +96,11 @@ class InfJukeboxTransitioner(Transitioner):
             next_part = next_song.time_series[next_frame:final_frame]
             song_array = np.append(prev_part, next_part)
             merge_time = next_song.time_delta(seg_start, prev_frame)
+
+            l.debug("Merged from %d to %d for the old song and from %d to" +
+                    " %d fro the new song.", seg_start, prev_frame, next_frame,
+                    final_frame)
+
             return (song_array, merge_time)
 
     def combine_similar_frames(self, prev_song, next_song, seg_start, seg_end):
@@ -110,6 +119,7 @@ class InfJukeboxTransitioner(Transitioner):
         highest = -9999999
         highest_n = 0
         highest_p = 0
+        l.debug("Combining similar frames.")
         for p in range(len(prev_bt) - 2):
             for n in range(len(next_bt) - 2):
                 corr = np.correlate(
@@ -123,9 +133,10 @@ class InfJukeboxTransitioner(Transitioner):
                     highest = average
                     highest_n = n
                     highest_p = p
-        print(highest_p, highest_n)
         transition = self.fade_frames(prev_song, prev_bt, highest_p, next_song,
                                       next_bt, highest_n)
+
+        l.info("Similar frames found, old: %d, new: %d.", highest_p, highest_n)
         return transition, prev_bt[highest_p - 1], next_bt[highest_n + 1]
 
     def fade_frames(self, prev_song, prev_bt, p, next_song, next_bt, n):
@@ -149,14 +160,19 @@ class InfJukeboxTransitioner(Transitioner):
         return final_seg
 
     def write_sample(self, sample):
-        print("Writing parg {} to {} dir".format(self.part_no,
-                                                 self.output_folder))
+        l.info("Writing part %d to %s.", self.part_no, self.output_folder)
+
         with tempfile.NamedTemporaryFile() as wavfile:
             mp3file = os.path.join(self.output_folder,
                                    "part{}.mp3".format(self.part_no))
+            l.debug("Using %s as wavfile and %s as mp3 file", wavfile.name,
+                    mp3file)
+
             librosa.output.write_wav(
                 wavfile.name, sample, sr=22050, norm=False)
             wavfile.flush()
             pydub.AudioSegment.from_wav(wavfile.name).export(
                 mp3file, format='mp3')
+
+        l.debug("Wrote mp3 file.")
         self.part_no += 1
