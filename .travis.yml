@@ -17,11 +17,10 @@ cache:
       - tests/test_data_songs
 
 script:
-  - | # Download if needed
-    if ! [[ -d tests/test_data/songs ]]; then wget https://attach.libremail.nl/songs.tar.gz && tar xfvz songs.tar.gz && mv songs/ tests/test_data/; fi
-    mkdir -p coverage
-    touch coverage/out
-    rm coverage/out
-    touch coverage/out
-    make style
-    pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/
+  - if ! [[ -d tests/test_data/songs ]]; then wget --no-check-certificate https://attach.libremail.nl/songs.tar.gz && tar xfvz songs.tar.gz && mv songs/ tests/test_data/; fi
+  - mkdir -p coverage
+  - touch coverage/out
+  - rm coverage/out
+  - touch coverage/out
+  - make style
+  - pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/
