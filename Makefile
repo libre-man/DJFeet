@@ -4,7 +4,8 @@ setup:
 	python3 setup.py install
 
 travis_setup:
-	pip install scipy
+	pip install --upgrade pip setuptools wheel
+	pip install --only-binary=scipy scipy
 	pip install -r requirements.txt
 	python3 setup.py install --user
 
