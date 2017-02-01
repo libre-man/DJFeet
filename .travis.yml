@@ -1,0 +1,28 @@
+language: python
+python:
+  - "3.4"
+  - "3.5"
+  - "3.6"
+# command to install dependencies
+before_install:
+  - apt update -qy
+  - apt-get install -y expect
+  - pip install --upgrade pip
+  - make test_setup
+install:
+  - make setup
+# command to run tests
+
+cache:
+  directories:
+    - tests/test_data_songs
+
+script:
+  - | # Download if needed
+    if ! [[ -d tests/test_data/songs ]]; then wget https://attach.libremail.nl/songs.tar.gz && tar xfvz songs.tar.gz && mv songs/ tests/test_data/; fi
+    mkdir -p coverage
+    touch coverage/out
+    rm coverage/out
+    touch coverage/out
+    make style
+    pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/
