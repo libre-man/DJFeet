@@ -4,7 +4,7 @@ setup:
 	python3 setup.py install
 
 travis_setup:
-	pip install --user -r requirements.txt
+	pip install -r requirements.txt
 	python3 setup.py install --user
 
 clean:
