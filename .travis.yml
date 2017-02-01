@@ -11,6 +11,7 @@ install:
   - make setup
 # command to run tests
 
+cache: pip
 cache:
   directories:
     - tests/test_data_songs
