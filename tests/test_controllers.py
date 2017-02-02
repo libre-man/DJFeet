@@ -35,7 +35,7 @@ def test_base_controller(controller_base):
     with pytest.raises(NotImplementedError):
         controller_base.get_waittime(None)
     with pytest.raises(NotImplementedError):
-        controller_base.reset_sleeptime(None)
+        controller_base.reset_sleeptime()
 
 
 def test_all_controllers(all_controllers):
@@ -49,7 +49,7 @@ def test_all_controllers(all_controllers):
     assert callable(get_waittime)
     assert get_waittime.__code__.co_argcount == 2
 
-    reset_sleeptime = all_controllers.get_waittime
+    reset_sleeptime = all_controllers.reset_sleeptime
     assert callable(reset_sleeptime)
     assert reset_sleeptime.__code__.co_argcount == 1
 
