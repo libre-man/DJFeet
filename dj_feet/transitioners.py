@@ -18,6 +18,7 @@ class Transitioner:
     if you want to implement a new picker. A subclass should override all
     public methods of this class.
     """
+
     def __init__(self):
         """The initializer of the base Transitioner class.
 
@@ -56,6 +57,7 @@ class InfJukeboxTransitioner(Transitioner):
     both songs is found (beatmatching). This beat is ultimately the transition
     between the songs, this is created by a coarse fade.
     """
+
     def __init__(self, output_folder, segment_size=30):
         """Create a new InfJukeboxTransitioner instance.
 
@@ -95,9 +97,24 @@ class InfJukeboxTransitioner(Transitioner):
             prev_song = next_song
 
         # Check whether the previous song still has segment size of time left
-        if not prev_song.segment_size_left(self.segment_size):
-            l.critical("Song time exceeded by %s.", prev_song.file_location)
-            raise ValueError("Song time exceeded")
+        if prev_song.file_location == next_song.file_location:
+            # We check op times two as we need 30 seconds for now and we might
+            # need at most 30 seconds to merge to another song after this
+            # merge. If we loop again after this iteration this check gets
+            # executed again.
+            if not prev_song.segment_size_left(self.segment_size * 2):
+                l.critical("We might not have enough time for %s.",
+                           prev_song.file_location)
+                raise ValueError("Song time exceeded")
+        else:
+            # We know we still have at least 30 seconds of prev_song left. See
+            # check above. We need at least 60 seconds of the next song: 30 for
+            # this merge and at most 30 seconds if we change songs after this.
+            # If we loop after this merge we get in the previous check.
+            if not next_song.segment_size_left(self.segment_size * 2):
+                l.critical("We might not have enough time for %s.",
+                           next_song.file_location)
+                raise ValueError("Song time exceeded")
 
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
