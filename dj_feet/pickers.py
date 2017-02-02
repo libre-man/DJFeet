@@ -24,13 +24,6 @@ class Picker:
     public methods of this class.
     """
 
-    def __init__(self):
-        """The initializer of the base picker class.
-
-        This function does nothing at the moment
-        """
-        pass
-
     def get_next_song(self, user_feedback, force=False):
         """Get the next song that should be used.
 

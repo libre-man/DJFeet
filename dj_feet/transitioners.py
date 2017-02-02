@@ -19,13 +19,6 @@ class Transitioner:
     public methods of this class.
     """
 
-    def __init__(self):
-        """The initializer of the base Transitioner class.
-
-        This function does nothing at the moment
-        """
-        pass
-
     def merge(self, prev_song, next_song):
         """Merge two given songs to one sample / part.
 

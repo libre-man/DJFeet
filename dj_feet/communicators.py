@@ -6,8 +6,12 @@ from .helpers import SongStruct
 
 
 class Communicator:
-    def __init__(self):
-        pass
+    """This is the base Communicator class.
+
+    You should not use this class directly but should inherit from this class
+    if you want to implement a new picker. A subclass should override all
+    public methods of this class.
+    """
 
     def get_user_feedback(self, remote, controller_id, start, end):
         """Get and return the user feedback. The return value should be

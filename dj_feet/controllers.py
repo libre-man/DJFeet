@@ -4,10 +4,11 @@ import datetime
 
 
 class Controller:
-    """The base Controller class.
+    """This is the base Controller class.
 
-    This class is only used for configuration purposes and EVERY method should
-    be overwritten.
+    You should not use this class directly but should inherit from this class
+    if you want to implement a new picker. A subclass should override all
+    public methods of this class.
     """
 
     def should_continue(self):
