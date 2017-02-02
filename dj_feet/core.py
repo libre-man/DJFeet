@@ -15,8 +15,8 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
     i = 0  # The part we are generating
     l.debug("Starting core loop.")
 
+    controller.reset_sleeptime()
     while controller.should_continue():
-        controller.reset_sleeptime()
         if len(merge_times) == 4:
             l.debug('Getting feedback from the communicator.')
             start, end = merge_times.pop(0)
@@ -63,15 +63,16 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
         transitioner.write_sample(result)
         l.debug("Wrote to output.")
 
-        l.info("Letting the communicator know we did an iteration.")
-        communicator.iteration(remote, app_id, new_sample)
-
         sleep_time = controller.get_waittime(new_sample)
         l.info('Going to sleep for %f seconds', sleep_time)
         if sleep_time < 0:
             l.error('Sleep time is negative, not enough samples!')
         else:
             time.sleep(sleep_time)
+        controller.reset_sleeptime()
+
+        l.info("Letting the communicator know we did an iteration.")
+        communicator.iteration(remote, app_id, new_sample)
 
         old_sample = new_sample
         i += 1
