@@ -264,8 +264,8 @@ class InfJukeboxTransitioner(Transitioner):
                   prev_song to next_song.
         :rtype: np.array
         """
-        sample_offset = librosa.core.time_to_samples([self.fade_time / 2],
-                                                     prev_song.sampling_rate)
+        sample_offset = librosa.core.time_to_samples(
+            [self.fade_time / 2], prev_song.sampling_rate)[0]
         prev_seg = np.array(prev_song.time_series[
             prev_mid_sample - sample_offset:prev_mid_sample + sample_offset])
         next_seg = np.array(next_song.time_series[
