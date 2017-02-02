@@ -291,8 +291,11 @@ def test_preserving_force(monkeypatch, nca_picker, _):
     monkeypatch.setattr(nca_picker, '_optimize_weights',
                         lambda: mock_get_feedback({}))
 
+    i = 0
     for _ in range(5):
         amount, prev = call_and_add(amount, prev)
+        if i > 100:
+            assert False
     assert not mock_get_feedback.called
 
     for _ in range(10):
@@ -303,8 +306,11 @@ def test_preserving_force(monkeypatch, nca_picker, _):
     assert not mock_get_feedback.called
     assert len(nca_picker.picked_songs) == 5
 
+    i = 0
     while amount <= 5:
         amount, prev = call_and_add(amount, prev)
+        if i > 100:
+            assert False
 
     assert len(nca_picker.picked_songs) == 5
     if not mock_get_feedback.called:
