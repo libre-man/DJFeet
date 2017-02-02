@@ -159,7 +159,8 @@ class InfJukeboxTransitioner(Transitioner):
             # next song. Now calculate to what frame the next song should go.
 
             final_frame = next_song.frame_to_segment_time(
-                self.segment_size - prev_song_time_delta, next_frame)
+                self.segment_size - prev_song_time_delta - self.fade_time,
+                next_frame)
 
             next_song.curr_time = next_song.time_delta(0, final_frame)
 
@@ -240,11 +241,11 @@ class InfJukeboxTransitioner(Transitioner):
                     highest = average
                     highest_n = n
                     highest_p = p
-        transition = self.fade_frames(prev_song, prev_bt[highest_p], next_song,
-                                      next_bt[highest_n])
+        transition, prev_end, next_start = self.fade_frames(
+            prev_song, prev_bt[highest_p], next_song, next_bt[highest_n])
 
         l.info("Similar frames found, old: %d, new: %d.", highest_p, highest_n)
-        return transition, prev_bt[highest_p - 1], next_bt[highest_n + 1]
+        return transition, prev_end, next_start
 
     def fade_frames(self, prev_song, prev_mid_sample, next_song,
                     next_mid_sample):
@@ -260,9 +261,11 @@ class InfJukeboxTransitioner(Transitioner):
         :param dj_feet.song.Song next_song: The song to play after prev_song.
         :param int next_mid_sample: The sample index of the next_song that
                                     should be in the middle of the merge.
-        :returns: An audio array that is the fade in and fade out from
-                  prev_song to next_song.
-        :rtype: np.array
+        :returns: A tuple contain respectively an audio array that is the fade
+                  in and fade out from prev_song to next_song, the start sample
+                  index used in the merge (inclusive) of prev_seg and the end
+                  sample index used in the merge (inclusive) of next_seg.
+        :rtype: tuple(np.array, int, int)
         """
         sample_offset = librosa.core.time_to_samples(
             [self.fade_time / 2], prev_song.sampling_rate)[0]
@@ -290,7 +293,8 @@ class InfJukeboxTransitioner(Transitioner):
             end = min(n + self.fade_steps, len(next_seg))
             final_seg[n:end] += next_seg[n:end] * (delta * ((end + n) / 2))
 
-        return final_seg
+        return (final_seg, prev_mid_sample - sample_offset,
+                next_mid_sample + sample_offset)
 
     def write_sample(self, sample):
         """Write the given sample to the output stream.
