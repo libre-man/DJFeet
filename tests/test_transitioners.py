@@ -114,8 +114,9 @@ def test_merge_sample(inf_jukebox_transitioner, random_song_files, monkeypatch,
     res, time_delta = inf_jukebox_transitioner.merge(song1, song2)
     assert (time_delta == inf_jukebox_transitioner.segment_size) == same
     assert mocking_append.called != same
-    assert (librosa.core.get_duration(res, song1.sampling_rate) ==
-            inf_jukebox_transitioner.segment_size)
+    assert abs(
+        librosa.core.get_duration(res, song1.sampling_rate) -
+        inf_jukebox_transitioner.segment_size) < 0.0001
 
 
 def test_time_exceeded_exception(inf_jukebox_transitioner, random_song_file):
