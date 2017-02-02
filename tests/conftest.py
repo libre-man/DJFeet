@@ -2,6 +2,9 @@ from libfaketime import reexec_if_needed
 import os
 import random
 import pytest
+import logging
+
+logging.basicConfig(level=logging.ERROR)
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 
