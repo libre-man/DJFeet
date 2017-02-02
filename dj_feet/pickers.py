@@ -24,13 +24,6 @@ class Picker:
     public methods of this class.
     """
 
-    def __init__(self):
-        """The initializer of the base picker class.
-
-        This function does nothing at the moment
-        """
-        pass
-
     def get_next_song(self, user_feedback, force=False):
         """Get the next song that should be used.
 
@@ -519,7 +512,7 @@ class NCAPicker(Picker):
             for song_file, chance in chances:
                 if random.random() < chance:
                     next_song = song_file
-                    l.debug("Found next_song %s, its change was %d", next_song,
+                    l.debug("Found next_song %s, its chance was %f", next_song,
                             chance)
                     break
             else:
