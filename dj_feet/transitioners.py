@@ -18,6 +18,7 @@ class Transitioner:
     if you want to implement a new picker. A subclass should override all
     public methods of this class.
     """
+
     def __init__(self):
         """The initializer of the base Transitioner class.
 
@@ -56,18 +57,28 @@ class InfJukeboxTransitioner(Transitioner):
     both songs is found (beatmatching). This beat is ultimately the transition
     between the songs, this is created by a coarse fade.
     """
-    def __init__(self, output_folder, segment_size=30):
+
+    def __init__(self,
+                 output_folder,
+                 segment_size=30,
+                 fade_time=6,
+                 fade_steps=1000):
         """Create a new InfJukeboxTransitioner instance.
 
         :param output_folder: The folder to write the new part to.
         :type output_folder: string
         :param segment_size: The length (in seconds) of a part. (default=30)
+        :param int fade_time: The total time in seconds a fade should last.
+        :param int fade_steps: The amount of samples to merge at the same time
+                               during the coarse fading.
         :type segment_size: int
         """
         self.output_folder = output_folder
         self.segment_size = segment_size
         self.segment_delta = datetime.timedelta(seconds=segment_size)
         self.part_no = 0
+        self.fade_time = fade_time
+        self.fade_steps = fade_steps
 
     def merge(self, prev_song, next_song):
         """Merge two songs together.
@@ -95,9 +106,26 @@ class InfJukeboxTransitioner(Transitioner):
             prev_song = next_song
 
         # Check whether the previous song still has segment size of time left
-        if not prev_song.segment_size_left(self.segment_size):
-            l.critical("Song time exceeded by %s.", prev_song.file_location)
-            raise ValueError("Song time exceeded")
+        if prev_song.file_location == next_song.file_location:
+            # We check op times two as we need 30 seconds for now and we might
+            # need at most 30 seconds to merge to another song after this
+            # merge. If we loop again after this iteration this check gets
+            # executed again.
+            if not prev_song.segment_size_left(self.segment_size * 2):
+                l.critical("We do not have enough time for '%s' (next song)." +
+                           " song.curr_time: %d", prev_song.file_location,
+                           prev_song.curr_time)
+                raise ValueError("Song time exceeded")
+        else:
+            # We know we still have at least 30 seconds of prev_song left. See
+            # check above. We need at least 60 seconds of the next song: 30 for
+            # this merge and at most 30 seconds if we change songs after this.
+            # If we loop after this merge we get in the previous check.
+            if not next_song.segment_size_left(self.segment_size * 2):
+                l.critical("We do not have enough time for '%s' (next song)." +
+                           " song.curr_time: %d", next_song.file_location,
+                           next_song.curr_time)
+                raise ValueError("Song time exceeded")
 
         # Get the next *segment_size* bounding frames from the previous /
         # current song.
@@ -175,12 +203,32 @@ class InfJukeboxTransitioner(Transitioner):
             self.segment_size, begin=True)
         next_bt = next_song.beat_tracks_in_segment(next_start, next_end)
 
+        min_prev_sample = librosa.core.time_to_samples(
+            [prev_song.curr_time + self.fade_time / 2],
+            prev_song.sampling_rate)[0]
+        max_prev_sample = librosa.core.time_to_samples(
+            [prev_song.curr_time + self.segment_size - self.fade_time / 2],
+            prev_song.sampling_rate)[0]
+        min_next_sample = librosa.core.time_to_samples(
+            [self.fade_time / 2], next_song.sampling_rate)[0]
+        max_next_sample = librosa.core.time_to_samples(
+            [self.segment_size - self.fade_time / 2],
+            next_song.sampling_rate)[0]
+
         highest = -9999999
         highest_n = 0
         highest_p = 0
         l.debug("Combining similar frames.")
         for p in range(len(prev_bt) - 2):
+            if prev_bt[p] < min_prev_sample:
+                continue
+            if prev_bt[p] >= max_prev_sample:
+                break
             for n in range(len(next_bt) - 2):
+                if next_bt[n] < min_next_sample:
+                    continue
+                if next_bt[n] >= max_next_sample:
+                    break
                 corr = np.correlate(
                     prev_song.time_series[prev_bt[p]:prev_bt[p + 1]],
                     next_song.time_series[next_bt[n]:next_bt[n + 1]],
@@ -192,46 +240,55 @@ class InfJukeboxTransitioner(Transitioner):
                     highest = average
                     highest_n = n
                     highest_p = p
-        transition = self.fade_frames(prev_song, prev_bt, highest_p, next_song,
-                                      next_bt, highest_n)
+        transition = self.fade_frames(prev_song, prev_bt[highest_p], next_song,
+                                      next_bt[highest_n])
 
         l.info("Similar frames found, old: %d, new: %d.", highest_p, highest_n)
         return transition, prev_bt[highest_p - 1], next_bt[highest_n + 1]
 
-    def fade_frames(self, prev_song, prev_bt, p, next_song, next_bt, n):
+    def fade_frames(self, prev_song, prev_mid_sample, next_song,
+                    next_mid_sample):
         """Create a transition between two songs given a matching beat.
 
         Use coarse fading to create a (smooth) transition between two songs
         given a beat that matches in both songs. An array containing the
         created transition will be returned.
 
-        :param prev_song: The song that is currently playing.
-        :type prev_song: dj_feet.song.Song
-        :param prev_bt: Array containing beat indices of prev_song.
-        :type prev_bt: int array
-        :param p: The index of the beat (found by beatmatching) of prev_song.
-        :type p: int
-        :param next_song: The song to play next, after prev_song.
-        :type next_song: dj_feet.song.Song
-        :param next_bt: Array containing beat indices of next_song.
-        :type next_bt: int array
-        :param n: The index of the beat (found by beatmatching) of next_song.
-        :type n: int
+        :param dj_feet.song.Song prev_song: The song that is currently playing.
+        :param int prev_mid_sample: The sample index of the prev_song that
+                                    should be in the middle of the merge.
+        :param dj_feet.song.Song next_song: The song to play after prev_song.
+        :param int next_mid_sample: The sample index of the next_song that
+                                    should be in the middle of the merge.
+        :returns: An audio array that is the fade in and fade out from
+                  prev_song to next_song.
         :rtype: np.array
         """
-        prev_seg = prev_song.time_series[prev_bt[p]:prev_bt[p + 1]]
-        next_seg = next_song.time_series[next_bt[n]:next_bt[n + 1]]
-        final_seg = []
-        prev_delta = 1 / len(prev_seg)
-        next_delta = 1 / len(next_seg)
-        for p in range(len(prev_seg)):
-            final_seg.append(prev_seg[p] * (1 - prev_delta * p))
+        sample_offset = librosa.core.time_to_samples(
+            [self.fade_time / 2], prev_song.sampling_rate)[0]
+        prev_seg = np.array(prev_song.time_series[
+            prev_mid_sample - sample_offset:prev_mid_sample + sample_offset])
+        next_seg = np.array(next_song.time_series[
+            next_mid_sample - sample_offset:next_mid_sample + sample_offset])
 
-        for n in range(len(next_seg)):
-            if n > len(prev_seg) - 1:
-                final_seg.append(next_seg[n] * (next_delta * n))
-            else:
-                final_seg[n] += next_seg[n] * (next_delta * n)
+        final_seg = np.array([])
+        delta = 1 / len(prev_seg)
+
+        if len(prev_seg) != len(next_seg):
+            l.critical("Segments are not of the same length during fading." +
+                       " (%d and %d)" + "Next starts at %d and ends at %d",
+                       len(prev_seg),
+                       len(next_seg), next_mid_sample - sample_offset,
+                       next_mid_sample + sample_offset)
+
+        for p in range(0, len(prev_seg), self.fade_steps):
+            end = min(p + self.fade_steps, len(prev_seg))
+            final_seg = np.append(final_seg, prev_seg[p:end] * (1 - delta * (
+                (end + p) / 2)))
+
+        for n in range(0, len(next_seg), self.fade_steps):
+            end = min(n + self.fade_steps, len(next_seg))
+            final_seg[n:end] += next_seg[n:end] * (delta * ((end + n) / 2))
 
         return final_seg
 
