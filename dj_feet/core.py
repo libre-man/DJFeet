@@ -71,6 +71,7 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
             l.error('Sleep time is negative, not enough samples!')
         else:
             time.sleep(sleep_time)
+        controller.reset_sleeptime()
 
         old_sample = new_sample
         i += 1

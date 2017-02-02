@@ -65,10 +65,14 @@ def mock_controller(request):
             self.waittime_emitted = []
             self.waittime_amount = waittime_amount
             self.waittime_args = []
+            self.reset_called = False
 
         def should_continue(self):
             self.called_amount += 1
             return self.amount >= self.called_amount
+
+        def reset_sleeptime(self):
+            self.reset_called = True
 
         def get_waittime(self, sample):
             to_emit = None
@@ -225,6 +229,8 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
         assert patched_post.args[0][0][0] == my_addr + '/controller_started/'
         assert patched_post.args[0][1]['json']['id'] == my_id
         assert patched_post.args[0][1]['json']['epoch'] == now
+
+        assert mock_controller.reset_called
 
     i = 0
     for prev, new in mock_transitioner.merge_args:

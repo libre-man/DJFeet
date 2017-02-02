@@ -13,6 +13,12 @@ class Controller:
         raise NotImplementedError(
             "This function should be overridden by the subclass")
 
+    def reset_sleeptime(self):
+        """Gets called at the end of every core loop. This also indicates the
+        sleep indicated by `get_waittime` has finished."""
+        raise NotImplementedError(
+            "This function should be overridden by the subclass")
+
     def get_waittime(self, prev_sample):
         """Return the amount of time we should sleep for.
         """
@@ -31,11 +37,13 @@ class SimpleController(Controller):
         self.iterations_done += 1
         return self.iteration_amount >= self.iterations_done
 
+    def reset_sleeptime(self):
+        self.previous_time = datetime.datetime.now()
+
     def get_waittime(self, prev_sample):
         if self.previous_time is None:
             self.previous_time = datetime.datetime.now()
             return 0
         now = datetime.datetime.now()
         res = self.ssc_delta - (now - self.previous_time).total_seconds()
-        self.previous_time = now
-        return max(res, 0)
+        return res
