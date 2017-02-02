@@ -65,16 +65,12 @@ def mock_controller(request):
             self.waittime_emitted = []
             self.waittime_amount = waittime_amount
             self.waittime_args = []
-            self.reset_called = False
 
         def should_continue(self):
             self.called_amount += 1
             return self.amount >= self.called_amount
 
-        def reset_sleeptime(self):
-            self.reset_called = True
-
-        def get_waittime(self, sample):
+        def get_waittime(self, sample, _):
             to_emit = None
             if callable(self.waittime_amount):
                 to_emit = self.waittime_amount()
@@ -189,7 +185,7 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
               mock_communicator, capsys, patched_post):
     mock_sleep = MockingFunction(lambda: None, simple=True)
     monkeypatch.setattr(time, 'sleep', mock_sleep)
-    now = int(time.time())
+    now = round(time.time())
     my_id = random.randint(1, 10010101)
     my_addr = str(random.random()) + "/local"
     core.loop(my_id, my_addr, mock_controller, mock_picker, mock_transitioner,
@@ -229,8 +225,6 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
         assert patched_post.args[0][0][0] == my_addr + '/controller_started/'
         assert patched_post.args[0][1]['json']['id'] == my_id
         assert patched_post.args[0][1]['json']['epoch'] == now
-
-        assert mock_controller.reset_called
 
     i = 0
     for prev, new in mock_transitioner.merge_args:
