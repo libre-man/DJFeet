@@ -14,7 +14,6 @@ import dj_feet.core as core
 from .config import Config
 from .helpers import get_args
 
-logging.basicConfig(level=logging.DEBUG)
 l = logging.getLogger(__name__)
 
 
