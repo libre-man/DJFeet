@@ -70,7 +70,7 @@ def mock_controller(request):
             self.called_amount += 1
             return self.amount >= self.called_amount
 
-        def get_waittime(self, sample):
+        def get_waittime(self, sample, _):
             to_emit = None
             if callable(self.waittime_amount):
                 to_emit = self.waittime_amount()
@@ -185,7 +185,7 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
               mock_communicator, capsys, patched_post):
     mock_sleep = MockingFunction(lambda: None, simple=True)
     monkeypatch.setattr(time, 'sleep', mock_sleep)
-    now = int(time.time())
+    now = round(time.time())
     my_id = random.randint(1, 10010101)
     my_addr = str(random.random()) + "/local"
     core.loop(my_id, my_addr, mock_controller, mock_picker, mock_transitioner,

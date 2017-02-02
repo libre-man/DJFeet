@@ -13,6 +13,7 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
     old_sample = None
     segment_size = None
     i = 0  # The part we are generating
+    epoch = None
     l.debug("Starting core loop.")
 
     while controller.should_continue():
@@ -49,11 +50,12 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
             # Now insert the starting time of the new segment
             merge_times.append([segment_size * i + merge_offset])
         else:
+            epoch = time.time()
             requests.post(
                 remote + "/controller_started/",
                 json={
                     'id': app_id,
-                    'epoch': int(time.time()),
+                    'epoch': round(epoch),
                 })
             merge_times.append([0])
             segment_size = merge_offset
@@ -62,15 +64,15 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
         transitioner.write_sample(result)
         l.debug("Wrote to output.")
 
-        l.info("Letting the communicator know we did an iteration.")
-        communicator.iteration(remote, app_id, new_sample)
-
-        sleep_time = controller.get_waittime(new_sample)
+        sleep_time = controller.get_waittime(epoch, segment_size)
         l.info('Going to sleep for %f seconds', sleep_time)
         if sleep_time < 0:
             l.error('Sleep time is negative, not enough samples!')
         else:
             time.sleep(sleep_time)
+
+        l.info("Letting the communicator know we did an iteration.")
+        communicator.iteration(remote, app_id, new_sample)
 
         old_sample = new_sample
         i += 1
