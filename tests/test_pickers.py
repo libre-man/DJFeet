@@ -295,7 +295,13 @@ def test_preserving_force(monkeypatch, nca_picker, _):
     for _ in range(5):
         amount, prev = call_and_add(amount, prev)
         if i > 100:
+            nca_picker.reset_songs()
+            nca_picker.get_next_song({}, force=True)
+            nca_picker.get_next_song({}, force=True)
+            nca_picker.get_next_song({}, force=True)
+        if i > 200:
             assert False
+        i += 1
     assert not mock_get_feedback.called
 
     for _ in range(10):
@@ -310,7 +316,13 @@ def test_preserving_force(monkeypatch, nca_picker, _):
     while amount <= 5:
         amount, prev = call_and_add(amount, prev)
         if i > 100:
+            nca_picker.reset_songs()
+            nca_picker.get_next_song({}, force=True)
+            nca_picker.get_next_song({}, force=True)
+            nca_picker.get_next_song({}, force=True)
+        if i > 200:
             assert False
+        i += 1
 
     assert len(nca_picker.picked_songs) == 5
     if not mock_get_feedback.called:
