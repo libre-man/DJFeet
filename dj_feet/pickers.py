@@ -118,10 +118,29 @@ class SimplePicker(Picker):
 
 
 class NCAPicker(Picker):
+    """This an sophisticated picker based on weighted NCA using user feedback.
+
+    This picker calculates the MFCC of every song. Using this MFCC it
+    calculates a covariance matrix. This covariance matrix and the PCA of the
+    average covariance matrix is used to calculate the Kullback-Liebler
+    divergence which is used as distance metric between the songs. These songs
+    are first pruned based on tempo. This distance is then softmaxed and the
+    chances are simulated.
+
+    The feedback is to optimize a weight vector using `scipy.optimize`. This
+    means that over time the distances should start to reflect how much the
+    dancers like the music instead of just the similarity between the songs.
+
+    This picker also contains checks and safeguards for not getting stuck in an
+    infinite loop and will reuse songs if no suitable new songs can be found.
+    It can also self loop, which is done with a chance that decreases
+    asymptotic.
+    """
+
     def __init__(self,
                  song_folder,
                  mfcc_amount=20,
-                 current_multiplier=0.5,
+                 current_multiplier=0.3,
                  weight_amount=4,
                  cache_dir=None,
                  weights=None,
@@ -136,7 +155,12 @@ class NCAPicker(Picker):
         :type mfcc_amount: int
         :param current_multiplier: The amount to reduce the chance that we will
                                    self loop. This is done by the following
-                                   formula: 1 / (1 + streak * multiplier)
+                                   formula: 1 / (1 + streak * multiplier). This
+                                   means that lower means more self loops. If
+                                   this variable is too low there will be too
+                                   many self loops and the picker might not
+                                   actually use its NCA qualities to ever chose
+                                   a new song so beware.
         :type current_multiplier: float
         :param weight_amount: The amount of weights to use, a value of around 4
                               is good. It should be less then mfcc_amount.
