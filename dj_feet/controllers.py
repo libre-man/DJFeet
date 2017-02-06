@@ -28,10 +28,28 @@ class SimpleController(Controller):
         self.ssc_delta = ssc_delta
 
     def should_continue(self):
+        """Return whether the loop should continue or not.
+
+        Check whether the amount of iterations done does not exceed the
+        iteration limit set at set-up. If it is not exceeded, the loop can
+        continue and thus ``True`` should be returned. Otherwise return
+        ``False``.
+
+        :returns: True if the loop can continue with it's next iteration,
+                  otherwise false.
+        :rtype: boolean
+        """
         self.iterations_done += 1
         return self.iteration_amount >= self.iterations_done
 
     def get_waittime(self, prev_sample):
+        """Calculate the waittime.
+
+        Calculate the waittime. That is the time to sleep for before the next
+        iteration should start. The waittime cannot be negative.
+
+
+        """
         if self.previous_time is None:
             self.previous_time = datetime.datetime.now()
             return 0
