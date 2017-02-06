@@ -55,8 +55,8 @@ class Config():
 
         This means setting the used classes for every class `BASECLASSES`.
 
-        :param vals: The dictionary of the mapping baseclass: subclass
-        :type vals: dict(str, str)
+        :param dict[str, str] vals: The dictionary of the mapping baseclass:
+                                    subclass
         :raises ValueError: If the key you want to set is present in
                             `self.FIXED_OPTIONS` or if the value is not a
                             subclass of the provided key according to
@@ -89,8 +89,8 @@ class Config():
                             `Config.BASECLASSES`.
         :param str subcls: The implementation of `basecls` to update the values
                            for.
-        :param vals: The values that should be mapped option: value to pass.
-        :type vals: dict(str, any)
+        :param dict[str] vals: The values that should be mapped option: value
+                               to pass.
         :raises ValueError: If the key of a val in `vals` is present in
                             `self.FIXED_OPTIONS`.
         :returns: Nothing of value.
@@ -185,10 +185,10 @@ class Config():
 
         :param type basecls: The base class, this should be a member of
                              BASECLASSES.
-        :param cls_name: The name of the subclass to find. This class
-                         should be a subclass of basecls. If `cls_name` is none
-                         the name from `user_config['main'][basecls]` is used.
-        :type cls_name: str or None
+        :param str or None cls_name: The name of the subclass to find. This
+                         class should be a subclass of basecls. If `cls_name`
+                         is none the name from `user_config['main'][basecls]`
+                         is used.
         :return: The class object with the given `cls_name`
         :rtype: type
         """

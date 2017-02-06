@@ -27,13 +27,12 @@ class Picker:
     def get_next_song(self, user_feedback, force=False):
         """Get the next song that should be used.
 
-        :param user_feedback: The user-feedback of the transition that was done
-                              5 non ``force`` iterations ago.
-        :type user_feedback: dict
-        :param force: Indicating if we have to change song right now. This
-                      means the previous return value of ``get_next_song`` was
-                      not used.
-        :type force: bool
+        :param dict user_feedback: The user-feedback of the transition
+                                   that was done 5 non ``force`` iterations
+                                   ago.
+        :param bool force: Indicating if we have to change song right now. This
+                           means the previous return value of ``get_next_song``
+                           was not used.
         :rtype: dj_feet.song.Song
         """
         raise NotImplementedError("This should be overridden")
@@ -50,12 +49,11 @@ class Picker:
         and should have side effects as you have no access to the ``self``
         variable.
 
-        :param song_file: This variable will always be given and should not be
-                          a variable in your ``__init__`` method. This is the
-                          current file to process. Please note that it is not
-                          guaranteed that this song will also be in the final
-                          directory to play.
-        :type song_file: string
+        :param str song_file: This variable will always be given and should not
+                          be a variable in your ``__init__`` method. This is
+                          the current file to process. Please note that it is
+                          not guaranteed that this song will also be in the
+                          final directory to play.
         :returns: This does not matter as it will not be used by the framework.
         """
         raise NotImplementedError("This should be overridden")
@@ -72,8 +70,7 @@ class SimplePicker(Picker):
     def __init__(self, song_folder):
         """Initialize the the ``SimplePicker`` object.
 
-        :param song_folder: The folder that contains the wav files to use.
-        :type song_folder: string
+        :param str song_folder: The folder that contains the wav files to use.
         """
         super(SimplePicker, self).__init__()
         self.song_files = [
@@ -86,9 +83,9 @@ class SimplePicker(Picker):
 
         This next song is always different from the previous song.
 
-        :param user_feedback: This is ignored.
-        :param force: This is also ignored as the returned song is always a new
-                      song.
+        :param dict user_feedback: This is ignored.
+        :param bool force: This is also ignored as the returned song is always
+                      a new song.
         :returns: A chosen song that has not been chosen yet.
         :rtype: dj_feet.song.Song
         :raises ValueError: If there are no songs left in ``song_files`` that
@@ -109,8 +106,7 @@ class SimplePicker(Picker):
         We don't need to process music, as we are not using any characteristics
         of music.
 
-        :param song_file: The path to the wav to be processed.
-        :type song_file: string
+        :param str song_file: The path to the wav to be processed.
         :rtype: None
         """
         return None
@@ -148,37 +144,32 @@ class NCAPicker(Picker):
                  max_force_streak=10):
         """Create a new NCAPicker instance.
 
-        :param song_folder: The folder of the wav file to use for merging.
-        :type song_folder: string
-        :param mfcc_amount: The number of mfcc's to use for picking.
-        :type mfcc_amount: int
-        :param current_multiplier: The amount to reduce the chance that we will
-                                   self loop. This is done by the following
-                                   formula: 1 / (1 + streak * multiplier). This
-                                   means that lower means more self loops. If
-                                   this variable is too low there will be too
-                                   many self loops and the picker might not
-                                   actually use its NCA qualities to ever chose
-                                   a new song so beware.
-        :type current_multiplier: float
-        :param weight_amount: The amount of weights to use, a value of around 4
-                              is good. It should be less then mfcc_amount.
-        :type weight_amount: int
-        :param cache_dir: The directory to use for caching purposes.
-        :type cache_dir: string
-        :param weights: The default weights to use. If this is a list it should
-                        have a length of ``weight_amount``
-        :type weights: None or list
-        :param feedback_method: The method to use for getting feedback.
-        :type feedback_method: string
-        :param max_tempo_percent: The maximum percentage the tempo of a new
-                                  song can differ from the tempo of the current
-                                  song.
+        :param str song_folder: The folder of the wav file to use for merging.
+        :param int mfcc_amount: The number of mfcc's to use for picking.
+        :param float current_multiplier: The amount to reduce the chance that
+                                         we will self loop. This is done by the
+                                         following formula: 1 / (1 + streak *
+                                         multiplier). This means that lower
+                                         means more self loops. If this
+                                         variable is too low there will be too
+                                         many self loops and the picker might
+                                         not actually use its NCA qualities to
+                                         ever chose a new song so beware.
+        :param int weight_amount: The amount of weights to use, a value of
+                                  around 4 is good. It should be less then
+                                  mfcc_amount.
+        :param str cache_dir: The directory to use for caching purposes.
+        :param None or list(float) weights: The default weights to use. If this
+                                            is a list it should have a length
+                                            of ``weight_amount``
+        :param str feedback_method: The method to use for getting feedback.
+        :param int max_tempo_percent: The maximum percentage the tempo of a new
+                                      song can differ from the tempo of the
+                                      current song.
         :param int max_force_streak: The maximum number of successive calls to
                                      ``get_next_song`` before we should reset
                                      all the songs to start using already used
                                      songs.
-        :type max_tempo_percent: int
         """
         super(NCAPicker, self).__init__()
 
@@ -230,12 +221,9 @@ class NCAPicker(Picker):
         This is done by calculating its ``mfcc`` and its tempo and storing this
         information in the given cache_dir.
 
-        :param song_file: The wav file of the song to process.
-        :type song_file: string
-        :param mfcc_amount: The amount of mfcc's to calculate.
-        :type mfcc_amount: int
-        :param cache_dir: The directory to save the cached properties in.
-        :type cache_dir: string
+        :param str song_file: The wav file of the song to process.
+        :param int mfcc_amount: The amount of mfcc's to calculate.
+        :param str cache_dir: The directory to save the cached properties in.
         :return: A tuple of the mfcc and tempo in this order.
         :rtype: tuple
         """
@@ -258,12 +246,10 @@ class NCAPicker(Picker):
     def calculate_songs_characteristics(self, mfcc_amount, cache_dir):
         """Calculate the songs characteristics.
 
-        :param mfcc_amount: The amount of mfccs to calculate.
-        :type mfcc_amount: int
-        :param cache_dir: The directory to find and store the cache. The bpm
-                          and mfcc is cached. If it is False caching is
-                          disabled.
-        :type cache_dir: string or False
+        :param int mfcc_amount: The amount of mfccs to calculate.
+        :param str or ``False`` cache_dir: The directory to find and store the
+                          cache. The bpm and mfcc is cached. If it is False
+                          caching is disabled.
         :returns: A tuple of respectively their PCA components, a dictionary
                   for in which each song has a tuple of respectively their
                   cholesky decomposition, the mean of their mfcc and their
@@ -350,10 +336,8 @@ class NCAPicker(Picker):
     def get_mfcc_and_tempo(song_file, mfcc_amount):
         """Calculate the mfcc and estimated BPM.
 
-        :param song_file: This file to calculate for.
-        :type song_file: string to a wav song file.
-        :type mfcc_amount: int
-        :param mfcc_amount: The amount of mfccs to calculate.
+        :param str song_file: This file to calculate for.
+        :param int mfcc_amount: The amount of mfccs to calculate.
         :returns: A tuple of the mfccs and tempo in BPM in this order.
         :rtype: tuple
         """
@@ -365,10 +349,8 @@ class NCAPicker(Picker):
     def get_w_vector(pca, weights):
         """Get a weighted pca matrix.
 
-        :param pca: The PCA to apply the weights on.
-        :type pca: numpy.array(numpy.array)
-        :param weights: The weights to apply.
-        :type weights: numpy.array(len(pca))
+        :param numpy.array(numpy.array) pca: The PCA to apply the weights on.
+        :param numpy.array(len(pca)) weights: The weights to apply.
         :returns: A square matrix of the same size as the PCA.
         :rtype: numpy.array
         """
@@ -382,13 +364,10 @@ class NCAPicker(Picker):
 
         This is done by using a PCA and a cholesky decomposition.
 
-        :param song_file: The path to the song that should be used. Please note
-                          that this path should be in ``self.song_properties``.
-        :type song_file: string
-        :param weights: The weights to be used.
-        :type weights: vector of the size of the pca that is in
-                       ``self.song_properties`` for the the given
-                       ``song_file``.
+        :param str song_file: The path to the song that should be used. Please
+                          note that this path should be in
+                          ``self.song_properties``.
+        :param numpy.array weights: The weights to be used.
         :returns: A square matrix of the same size as the weights vector.
         :rtype: numpy.array
         """
@@ -403,12 +382,9 @@ class NCAPicker(Picker):
         This is done based on this paper:
         http://cs229.stanford.edu/proj2009/RajaniEkkizogloy.pdf
 
-        :param song_q: The first song used.
-        :type song_q: string
-        :param song_p: The second song used.
-        :type song_p: string
-        :param weights: The weights vector to use.
-        :type weights: numpy.array
+        :param str song_q: The first song used.
+        :param str song_p: The second song used.
+        :param numpy.array weights: The weights vector to use.
         :returns: The distance between the two given songs. This distance is
                   symmetric.
         :rtype: int

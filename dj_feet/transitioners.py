@@ -22,12 +22,16 @@ class Transitioner:
     def merge(self, prev_song, next_song):
         """Merge two given songs to one sample / part.
 
-        :param prev_song: The song that is currently playing.
-        :type prev_song: dj_feet.song.Song
-        :param next_song: The song to play next, after prev_song. To not change
-                          songs, next_song should be the same as prev_song.
-        :type next_song: dj_feet.song.Song
-        :rtype: (dj_feet.song.Song, int)
+        .. warning:: The length of each outputted segement should be the same!
+
+        :param Song prev_song: The song that is currently playing.
+        :param Song next_song: The song to play next, after prev_song. To not
+                          change songs, next_song should be the same as
+                          prev_song.
+        :returns: A tuple contain the segment that will be given to
+                  :func:`write_sample` and the time the merge happend in the
+                  segment or the ``segment_size`` of the merge.
+        :rtype: tuple(T, int)
         """
         raise NotImplementedError(
             "This function should be overridden by the subclass")
@@ -35,8 +39,7 @@ class Transitioner:
     def write_sample(self, sample):
         """Write the given sample to the output stream.
 
-        :param sample: The created part / sample to write.
-        :type sample: np.array
+        :param T sample: The created part / sample to write.
         """
         raise NotImplementedError(
             "This function should be overridden by the subclass")
@@ -56,15 +59,12 @@ class InfJukeboxTransitioner(Transitioner):
                  segment_size=30,
                  fade_time=6,
                  fade_steps=1000):
-        """Create a new InfJukeboxTransitioner instance.
-
-        :param output_folder: The folder to write the new part to.
-        :type output_folder: string
-        :param segment_size: The length (in seconds) of a part. (default=30)
+        """
+        :param str output_folder: The folder to write the new part to.
+        :param int segment_size: The length (in seconds) of a part.
         :param int fade_time: The total time in seconds a fade should last.
         :param int fade_steps: The amount of samples to merge at the same time
                                during the coarse fading.
-        :type segment_size: int
         """
         self.output_folder = output_folder
         self.segment_size = segment_size
@@ -84,12 +84,13 @@ class InfJukeboxTransitioner(Transitioner):
         the beginning of the part) the transition takes place. (so, that 30 -
         this time is the length of the next song played in the created part)
 
-        :param prev_song: The song that is currently playing.
-        :type prev_song: dj_feet.song.Song
-        :param next_song: The song to play next, after prev_song. To not change
-                          songs, next_song should be the same as prev_song.
-        :type next_song: dj_feet.song.Song
-        :rtype: (np.array, int)
+        :param Song prev_song: The song that is currently playing.
+        :param Song next_song: The song to play next, after prev_song. To not
+                          change songs, next_song should be the same as
+                          prev_song.
+        :returns: A tuple containing the next segment end the time the
+                  transition happens.
+        :rtype: tuple(numpy.array, int)
         """
         if prev_song is None:
             if self.part_no > 0:
@@ -178,19 +179,17 @@ class InfJukeboxTransitioner(Transitioner):
         frames in the next segment of the current song and the first segment
         of the next song will be taken into account. Similarities between
         beats are compared and approximated using cross correlation.
-        Returns a tuple of the frames (frame_prev_song, frame_next_song) that
-        are found most similar. In addition it returns an the created
-        transition.
 
-        :param prev_song: The song that is currently playing.
-        :type prev_song: dj_feet.song.Song
-        :param next_song: The song to play next, after prev_song.
-        :type next_song: dj_feet.song.Song
-        :param seg_start: The first sample of the next segment of prev_song.
-        :type seg_start: int
-        :param seg_end: The final sample of the next segment of prev_song.
-        :type seg_end: int
-        :rtype: (np.array, int, int)
+        :param Song prev_song: The song that is currently playing.
+        :param Song next_song: The song to play next, after prev_song.
+        :param int seg_start: The first sample of the next segment of
+                              prev_song.
+        :param int seg_end: The final sample of the next segment of prev_song.
+
+        :returns: Returns a tuple of the transition, the index of frame of the
+                  prev song where the transition begins and the index of the
+                  frame of the next song where the transition ends.
+        :rtype: tuple(numpy.array, int, int)
         """
         prev_bt = prev_song.beat_tracks_in_segment(seg_start, seg_end)
         next_start, next_end = next_song.next_segment(
@@ -245,8 +244,7 @@ class InfJukeboxTransitioner(Transitioner):
         """Create a transition between two songs given a matching beat.
 
         Use coarse fading to create a (smooth) transition between two songs
-        given a beat that matches in both songs. An array containing the
-        created transition will be returned.
+        given a beat that matches in both songs.
 
         :param dj_feet.song.Song prev_song: The song that is currently playing.
         :param int prev_mid_sample: The sample index of the prev_song that
@@ -258,7 +256,9 @@ class InfJukeboxTransitioner(Transitioner):
                   in and fade out from prev_song to next_song, the start sample
                   index used in the merge (inclusive) of prev_seg and the end
                   sample index used in the merge (inclusive) of next_seg.
-        :rtype: tuple(np.array, int, int)
+        :returns: An tuple containing the created transition, the start time of
+                  the transition and the end time.
+        :rtype: tuple(numpy.array, int, int)
         """
         sample_offset = librosa.core.time_to_samples(
             [self.fade_time / 2], prev_song.sampling_rate)[0]
@@ -296,8 +296,9 @@ class InfJukeboxTransitioner(Transitioner):
         output folder when intializing the InfJukeboxTransitioner instance. As
         a side-effect, a WAV file will be written in addition to the MP3 file.
 
-        :param sample: The created part / sample to write.
-        :type sample: np.array
+        :param numpy.array sample: The created part / sample to write.
+        :returns: Nothing of value
+        :rtype: None
         """
         l.info("Writing part %d to %s.", self.part_no, self.output_folder)
         with tempfile.NamedTemporaryFile() as wavfile:
