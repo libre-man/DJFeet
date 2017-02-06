@@ -28,10 +28,10 @@ class Picker:
         """Get the next song that should be used.
 
         :param user_feedback: The user-feedback of the transition that was done
-                              5 non `force` iterations ago.
+                              5 non ``force`` iterations ago.
         :type user_feedback: dict
         :param force: Indicating if we have to change song right now. This
-                      means the previous return value of `get_next_song` was
+                      means the previous return value of ``get_next_song`` was
                       not used.
         :type force: bool
         :rtype: dj_feet.song.Song
@@ -43,16 +43,15 @@ class Picker:
         """Process the given music file.
 
         If you give this method any variables these need to have the same name
-        as in your `__init__` method, where they also have to occur! These
+        as in your ``__init__`` method, where they also have to occur! These
         variables will be marked as needs_reload. They can have default values.
 
         Please note that this is a static methode. Therefore this method can
-        and should have side effects as you have no access to the `self`
+        and should have side effects as you have no access to the ``self``
         variable.
 
-
         :param song_file: This variable will always be given and should not be
-                          a variable in your `__init__` method. This is the
+                          a variable in your ``__init__`` method. This is the
                           current file to process. Please note that it is not
                           guaranteed that this song will also be in the final
                           directory to play.
@@ -63,7 +62,7 @@ class Picker:
 
 
 class SimplePicker(Picker):
-    """A simple picker that chooses songs by random.
+    """A simple picker that chooses songs randomly.
 
     This picker should not be used if you want any kind of intelligent
     transitioning of songs. This picker will always pick a new random song and
@@ -71,7 +70,7 @@ class SimplePicker(Picker):
     """
 
     def __init__(self, song_folder):
-        """Initialize the the `SimplePicker` object.
+        """Initialize the the ``SimplePicker`` object.
 
         :param song_folder: The folder that contains the wav files to use.
         :type song_folder: string
@@ -92,8 +91,8 @@ class SimplePicker(Picker):
                       song.
         :returns: A chosen song that has not been chosen yet.
         :rtype: dj_feet.song.Song
-        :raises ValueError: If there are no songs left in `song_files` that are
-                            not yet picked.
+        :raises ValueError: If there are no songs left in ``song_files`` that
+                            are not yet picked.
         """
         next_song = ""
         while not os.path.isfile(next_song):
@@ -127,7 +126,7 @@ class NCAPicker(Picker):
     are first pruned based on tempo. This distance is then softmaxed and the
     chances are simulated.
 
-    The feedback is to optimize a weight vector using `scipy.optimize`. This
+    The feedback is to optimize a weight vector using ``scipy.optimize``. This
     means that over time the distances should start to reflect how much the
     dancers like the music instead of just the similarity between the songs.
 
@@ -168,7 +167,7 @@ class NCAPicker(Picker):
         :param cache_dir: The directory to use for caching purposes.
         :type cache_dir: string
         :param weights: The default weights to use. If this is a list it should
-                        have a length of `weight_amount`
+                        have a length of ``weight_amount``
         :type weights: None or list
         :param feedback_method: The method to use for getting feedback.
         :type feedback_method: string
@@ -176,8 +175,8 @@ class NCAPicker(Picker):
                                   song can differ from the tempo of the current
                                   song.
         :param int max_force_streak: The maximum number of successive calls to
-                                     `get_next_song` before we should reset all
-                                     the songs to start using already used
+                                     ``get_next_song`` before we should reset
+                                     all the songs to start using already used
                                      songs.
         :type max_tempo_percent: int
         """
@@ -190,9 +189,8 @@ class NCAPicker(Picker):
         if weights is not None:
             if abs(sum(self.weights) - 1) > EPSILON or len(
                     self.weights) != weight_amount:
-                raise ValueError(
-                    "The amount of weights should be equal to `weight_amount`"
-                    " and sum to 1")
+                raise ValueError("The amount of weights should be equal to" +
+                                 " ``weight_amount`` and sum to 1")
 
         if mfcc_amount < weight_amount:
             raise ValueError("You cannot have more weights than mfcc vectors")
@@ -227,9 +225,9 @@ class NCAPicker(Picker):
 
     @staticmethod
     def process_song_file(mfcc_amount, cache_dir, song_file):
-        """Process the given `song_file`.
+        """Process the given ``song_file``.
 
-        This is done by calculating its `mfcc` and its tempo and storing this
+        This is done by calculating its ``mfcc`` and its tempo and storing this
         information in the given cache_dir.
 
         :param song_file: The wav file of the song to process.
@@ -263,14 +261,17 @@ class NCAPicker(Picker):
         :param mfcc_amount: The amount of mfccs to calculate.
         :type mfcc_amount: int
         :param cache_dir: The directory to find and store the cache. The bpm
-                          and mfcc is cached.
-        :type cache_dir: string or False to disable caching.
+                          and mfcc is cached. If it is False caching is
+                          disabled.
+        :type cache_dir: string or False
         :returns: A tuple of respectively their PCA components, a dictionary
                   for in which each song has a tuple of respectively their
                   cholesky decomposition, the mean of their mfcc and their
                   average BPM. Finally the return tuple contains the current
                   weights for calculating the covariance matrix.
-        :rtype: tuple
+        :rtype: tuple(numpy.array,
+                      dict[string, tuple(numpy.array, int, int)],
+                      numpy.array)
         """
         mfccs = dict()
         tempos = dict()
@@ -336,7 +337,7 @@ class NCAPicker(Picker):
         return pca.components_.T, song_properties, weights
 
     def reset_songs(self):
-        """Reset `self.song_files` to its original value.
+        """Reset ``self.song_files`` to its original value.
 
         This does not alter the weights calculated till now.
 
@@ -365,9 +366,9 @@ class NCAPicker(Picker):
         """Get a weighted pca matrix.
 
         :param pca: The PCA to apply the weights on.
-        :type pca: A square 2d PCA matrix.
+        :type pca: numpy.array(numpy.array)
         :param weights: The weights to apply.
-        :type weights: A weights vector of the same height as the pca matrix
+        :type weights: numpy.array(len(pca))
         :returns: A square matrix of the same size as the PCA.
         :rtype: numpy.array
         """
@@ -382,11 +383,12 @@ class NCAPicker(Picker):
         This is done by using a PCA and a cholesky decomposition.
 
         :param song_file: The path to the song that should be used. Please note
-                          that this path should be in `self.song_properties`.
+                          that this path should be in ``self.song_properties``.
         :type song_file: string
         :param weights: The weights to be used.
         :type weights: vector of the size of the pca that is in
-                       `self.song_properties` for the the given `song_file`.
+                       ``self.song_properties`` for the the given
+                       ``song_file``.
         :returns: A square matrix of the same size as the weights vector.
         :rtype: numpy.array
         """
@@ -430,8 +432,20 @@ class NCAPicker(Picker):
         return (kl(song_q, song_p) + kl(song_p, song_q)) / 2
 
     def get_next_song(self, user_feedback, force=False):
-        """Get the next song to play. Do this by random for the first and
-        otherwise use `_find_next_song`"""
+        """Get the next song to play.
+
+        Do this randomly for the first and otherwise use
+        :func:`_find_next_song`. This also calls :func:`_optimize_weights` if
+        we got useful feedback (based on the current song we are mixing). If
+        :paramref:`get_next_song.force` was ``True`` too many times we pick
+        random again.
+
+        :param dict user_feedback: The user feedback between the song of five
+                                   and four picks ago.
+        :param bool force: Indicate that the previous pick was not expectable.
+        :return: The song to play next:
+        :rtype: Song
+        """
         # We have only one song remaining so we won't be able to pick good new
         # songs. So reset all the available songs.
         if len(self.song_files) == 1:
@@ -476,10 +490,16 @@ class NCAPicker(Picker):
         return Song(next_song)
 
     def _find_next_song(self, force):
-        """Find the next song by getting the distance between the current and
-        the potential song, doing softmax with these distances and getting one
-        by chance. Based on this paper:
+        """Find the next song by doing song analysis.
+
+        This gets the distance between the current and the potential song,
+        does softmax with these distances and gets one by chance. Based on this
+        paper:
         http://www.cs.cornell.edu/~kilian/papers/Slaney2008-MusicSimilarityMetricsISMIR.pdf
+
+        :param bool force: Make it impossible to pick the current song.
+        :returns: The filename of the next song.
+        :rtype: str
         """
         l.debug("Finding song by using NCA.")
 
@@ -512,9 +532,9 @@ class NCAPicker(Picker):
             if song_file != self.current_song:
                 dst = self.song_distances[self.current_song][song_file]
                 chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
-                chances.append((song_file, chance))
+                chances.append([song_file, chance])
 
-        chances = self.normalize_chances(chances)
+        chances[1] = self.normalize_chances(chances[1])
 
         if not force:
             chances.append(
@@ -551,21 +571,33 @@ class NCAPicker(Picker):
     @staticmethod
     def normalize_chances(original_chances):
         """Normilize the chances by squaring them and normalizing them again.
+
         Square the chances and then normalize them again. This has the
-        advantage of giving relative high chances, so similar songs, a
-        relative higher chance will still remaining a vector sum of 1.
-        NOTE: The chances should be a list of tuples in which the second item
-        is the chance.
+        advantage of giving relative high chances (similar songs) a
+        higher chance while still remaining a vector sum of 1.
+
+        :param list(int) original_chances: The original chances of the songs.
+        :returns: The new chances in the same order the input was.
+        :rtype: list(int)
         """
         chances = list()
         for chance in original_chances:
-            chances.append((chance[0], chance[1]**2))
+            chances.append(chance**2)
         chance_sum = sum((x[1] for x in chances))
         for i in range(len(chances)):
-            chances[i] = (chances[i][0], chances[i][1] / chance_sum)
+            chances[i] = chances[i] / chance_sum
         return chances
 
     def _optimize_weights(self):
+        """Optimize the weights of the picker.
+
+        This function optimizes the weights based on the saved feedback between
+        to songs using the :func:`scipy.optimize.minimize` function. It
+        constrains the weights to sum to 1.
+
+        :returns: Nothing of value.
+        :rtype: None
+        """
         l.debug("Optimize the current weights.")
 
         def func_to_optimize(weights):
@@ -580,8 +612,8 @@ class NCAPicker(Picker):
             distance_sum = sum((dst * factor for _, dst in feedback_dsts))
             for feedback, dst in feedback_dsts:
                 chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
-                feedback_chances.append((feedback, chance))
-            feedback_chances = self.normalize_chances(feedback_chances)
+                feedback_chances.append([feedback, chance])
+            feedback_chances[1] = self.normalize_chances(feedback_chances[1])
             res_diff = 0
             for feedback, chance in feedback_chances:
                 res_diff = abs(feedback - chance)
@@ -603,16 +635,35 @@ class NCAPicker(Picker):
             self.weights = res.x
 
     def all_but_current_song(self, filter_songs=True):
-        """A generator that yields all but the current song of all played
-        songs."""
+        """Get all songs except for the current song.
+
+        This does not include songs that were played since the last call to
+        :func:`reset_songs`.
+
+        :param bool filter_songs: Indicate if the iterator should filter songs
+                                  based on tempo.
+        :yields: All songs that are not yet played except for the current song.
+        :rtype: str
+        """
         iterator = self.all_close_songs() if filter_songs else self.song_files
         for song_file in iterator:
             if song_file != self.current_song:
                 yield song_file
 
     def all_close_songs(self, base_song=None):
-        """All songs filtered by their average tempo. The tempo used for
-        filtering is base_song. If this is None `self.current_song` is used."""
+        """Get all songs filtered by their average tempo.
+
+        This function makes a generator that contains all not played songs
+        after the last call to :func:`reset_songs` filtered by their tempo,
+        which can have a maximum offset of
+        :paramref:`NCAPicker.max_tempo_percent` percent.
+
+        :param string base_song: The base song of which its tempo used for
+                                 filtering, if ``None`` the current song is
+                                 used.
+        :yields: A generator filtered by tempo.
+        :rtype: str
+        """
         if base_song is None:
             base_song = self.current_song
         _, _unused, base_tempo = self.song_properties[base_song]
