@@ -2,6 +2,9 @@
 import sys
 import time
 import requests
+import logging
+
+l = logging.getLogger(__name__)
 
 
 def loop(app_id, remote, controller, picker, transitioner, communicator):
@@ -10,29 +13,35 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
     old_sample = None
     segment_size = None
     i = 0  # The part we are generating
-    print("Starting core loop")
+    epoch = None
+    l.debug("Starting core loop.")
 
     while controller.should_continue():
         if len(merge_times) == 4:
+            l.debug('Getting feedback from the communicator.')
             start, end = merge_times.pop(0)
             feedback = communicator.get_user_feedback(remote, app_id, start,
                                                       end)
+            l.debug('Received feedback from the server: %s.', feedback)
         else:
+            l.debug('Not enough samples yet, so got no feedback.')
             feedback = {}
 
-        print("Starting picking")
+        l.debug("Starting picking.")
         new_sample = picker.get_next_song(feedback, force=False)
-        print("Got song: {}".format(new_sample))
+        l.info("Got song: %s.", new_sample.file_location)
         while True:
             try:
                 result, merge_offset = transitioner.merge(old_sample,
                                                           new_sample)
                 break
             except ValueError:
-                print('Trying with some FORCE!')
+                l.info('Got song %s however' +
+                       ' this was not good, trying with force',
+                       new_sample.file_location)
                 new_sample = picker.get_next_song(feedback, force=True)
 
-        print("Appending succeeded. Continuing")
+        l.debug("Appending succeeded. Continuing")
 
         if merge_times:
             # First update the previous segment with an ending time
@@ -41,30 +50,30 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
             # Now insert the starting time of the new segment
             merge_times.append([segment_size * i + merge_offset])
         else:
+            epoch = time.time()
             requests.post(
                 remote + "/controller_started/",
                 json={
                     'id': app_id,
-                    'epoch': int(time.time()),
+                    'epoch': round(epoch),
                 })
             merge_times.append([0])
             segment_size = merge_offset
 
-        print("Trying to write to output")
+        l.info("Writing result to output.")
         transitioner.write_sample(result)
-        print("Wrote to output")
+        l.debug("Wrote to output.")
 
-        print("Letting the communicator know we did an iteration")
-        communicator.iteration(remote, app_id, new_sample)
-
-        sleep_time = controller.get_waittime(new_sample)
-        print('Going to sleep for {} seconds'.format(sleep_time))
+        sleep_time = controller.get_waittime(epoch, segment_size)
+        l.info('Going to sleep for %f seconds', sleep_time)
         if sleep_time < 0:
-            print(
-                'Sleep time is negative, not enough samples!', file=sys.stderr)
+            l.error('Sleep time is negative, not enough samples!')
         else:
             time.sleep(sleep_time)
 
+        l.info("Letting the communicator know we did an iteration.")
+        communicator.iteration(remote, app_id, new_sample)
+
         old_sample = new_sample
         i += 1
-    print("Ended our core loop!")
+    l.debug("Ended our core loop! We are terminating.")

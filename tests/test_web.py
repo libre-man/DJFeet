@@ -183,7 +183,7 @@ def test_add_music(monkeypatch, app_client, throw, url, expected_code):
         monkeypatch.undo()
 
 
-@pytest.mark.parametrize("raises", [Exception, MemoryError])
+@pytest.mark.parametrize("raises", [Exception, ValueError, MemoryError])
 def test_exception_backend_worker(raises, monkeypatch):
     mocked_post = MockingFunction()
     monkeypatch.setattr(requests, 'post', mocked_post)
@@ -191,10 +191,10 @@ def test_exception_backend_worker(raises, monkeypatch):
     def raising():
         raise raises
 
-    mocked_split_text = MockingFunction(raising, simple=True)
-    monkeypatch.setattr(os.path, 'splitext', mocked_split_text)
-
     worker_queue = queue.Queue()
+
+    mocked_split_text = MockingFunction(raising, simple=True)
+    monkeypatch.setattr(worker_queue, 'get', mocked_split_text)
 
     song_id = random.randint(1000, 10000)
     my_id = random.randint(0, 1000)

@@ -1,0 +1,25 @@
+language: python
+python:
+  - "3.5"
+  - "3.6"
+# command to install dependencies
+
+before_install:
+  - make test_setup
+install:
+  - make travis_setup
+# command to run tests
+
+cache:
+  - pip
+  - directories:
+      - tests/test_data_songs
+
+script:
+  - if ! [[ -d tests/test_data/songs ]]; then wget http://force-http-attach.libremail.nl/songs.tar.gz && tar xfvz songs.tar.gz && mv songs/ tests/test_data/; fi
+  - mkdir -p coverage
+  - touch coverage/out
+  - rm coverage/out
+  - touch coverage/out
+  - make style
+  - pytest -v --cov-config=.coveragerc --cov-report term-missing --cov=dj_feet --runslow tests/

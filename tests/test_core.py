@@ -6,11 +6,14 @@ import time
 import random
 import datetime
 import requests
+from collections import namedtuple
 
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, my_path + '/../')
 
 import dj_feet.core as core
+
+MySong = namedtuple("MySong", 'val, file_location')
 
 
 @pytest.fixture
@@ -29,9 +32,9 @@ def mock_forcing_picker():
 
         def get_next_song(self, _, force):
             if force:
-                return random.random()
+                return MySong(random.random(), random.random())
             else:
-                return -1
+                return MySong(-1, random.random())
 
     yield MockPicker()
 
@@ -44,7 +47,7 @@ def mock_picker():
             self.emitted = []
 
         def get_next_song(self, feedback, force):
-            to_emit = random.random()
+            to_emit = MySong(random.random(), random.random())
             self.feedback.append(feedback)
             self.emitted.append(to_emit)
             return to_emit
@@ -52,7 +55,7 @@ def mock_picker():
     yield MockPicker()
 
 
-@pytest.fixture(params=[(4, 100), (5, 100), (10, 100), (0, 100), (2, -1),
+@pytest.fixture(params=[(4, 100), (5, 100), (10, 100), (0, 100),
                         (1000, random.random)])
 def mock_controller(request):
     class MockController:
@@ -67,7 +70,7 @@ def mock_controller(request):
             self.called_amount += 1
             return self.amount >= self.called_amount
 
-        def get_waittime(self, sample):
+        def get_waittime(self, sample, _):
             to_emit = None
             if callable(self.waittime_amount):
                 to_emit = self.waittime_amount()
@@ -182,7 +185,7 @@ def test_loop(monkeypatch, mock_controller, mock_picker, mock_transitioner,
               mock_communicator, capsys, patched_post):
     mock_sleep = MockingFunction(lambda: None, simple=True)
     monkeypatch.setattr(time, 'sleep', mock_sleep)
-    now = int(time.time())
+    now = round(time.time())
     my_id = random.randint(1, 10010101)
     my_addr = str(random.random()) + "/local"
     core.loop(my_id, my_addr, mock_controller, mock_picker, mock_transitioner,
