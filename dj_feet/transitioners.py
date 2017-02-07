@@ -24,6 +24,12 @@ class Transitioner:
 
         .. warning:: The length of each outputted segement should be the same!
 
+        .. warning:: ``merge.prev_song`` and ``merge.next_song`` may not be
+                     equal according to ``__eq__`` but still have the same file
+                     location and therefore be the same song. So check if
+                     :attr:`Song.file_location` is the same to check if two
+                     songs are the same.
+
         :param Song prev_song: The song that is currently playing.
         :param Song next_song: The song to play next, after prev_song. To not
                           change songs, next_song should be the same as
@@ -31,15 +37,19 @@ class Transitioner:
         :returns: A tuple contain the segment that will be given to
                   :func:`write_sample` and the time the merge happend in the
                   segment or the ``segment_size`` of the merge.
+        :raises ValueError: If ``merge.next_song`` cannot be used for what ever
+                            reason a ``ValueError`` should be raised.
         :rtype: tuple(T, int)
         """
         raise NotImplementedError(
             "This function should be overridden by the subclass")
 
     def write_sample(self, sample):
-        """Write the given sample to the output stream.
+        """Write the given sample to some sort of output stream.
 
-        :param T sample: The created part / sample to write.
+        :param T sample: The created part / sample to write. This is the same
+                         as the first item of the return value tuple of
+                         :func:`merge` function.
         """
         raise NotImplementedError(
             "This function should be overridden by the subclass")

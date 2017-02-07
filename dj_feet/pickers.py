@@ -27,12 +27,21 @@ class Picker:
     def get_next_song(self, user_feedback, force=False):
         """Get the next song that should be used.
 
+        .. note:: This function has to build in safeties to protect it from not
+                  returning something useful after several calls with ``force``
+                  set to ``True``.
+
+        .. warning:: The ``user_feedback`` argument is not the feedback of the
+                     previous song but that of some iterations back. For more
+                     information of the timeline see how the :class:`NCAPicker`
+                     handles this and see :ref:`the timeline.<djfeet-timeline>`
+
         :param dict user_feedback: The user-feedback of the transition
                                    that was done 5 non ``force`` iterations
                                    ago.
         :param bool force: Indicating if we have to change song right now. This
-                           means the previous return value of ``get_next_song``
-                           was not used.
+                           means the previous return value of
+                           :func:`get_next_song` was not used.
         :rtype: dj_feet.song.Song
         """
         raise NotImplementedError("This should be overridden")
@@ -159,9 +168,9 @@ class NCAPicker(Picker):
                                   around 4 is good. It should be less then
                                   mfcc_amount.
         :param str cache_dir: The directory to use for caching purposes.
-        :param None or list(float) weights: The default weights to use. If this
-                                            is a list it should have a length
-                                            of ``weight_amount``
+        :param weights: The default weights to use. If this is a list it should
+                        have a length of ``weight_amount``
+        :type weights: None or list(float)
         :param str feedback_method: The method to use for getting feedback.
         :param int max_tempo_percent: The maximum percentage the tempo of a new
                                       song can differ from the tempo of the
@@ -247,9 +256,10 @@ class NCAPicker(Picker):
         """Calculate the songs characteristics.
 
         :param int mfcc_amount: The amount of mfccs to calculate.
-        :param str or ``False`` cache_dir: The directory to find and store the
-                          cache. The bpm and mfcc is cached. If it is False
-                          caching is disabled.
+        :param cache_dir: The directory to find and store the cache. The bpm
+                          and mfcc is cached. If it is False caching is
+                          disabled.
+        :type cache_dir: str or ``False``
         :returns: A tuple of respectively their PCA components, a dictionary
                   for in which each song has a tuple of respectively their
                   cholesky decomposition, the mean of their mfcc and their
@@ -413,8 +423,7 @@ class NCAPicker(Picker):
         Do this randomly for the first and otherwise use
         :func:`_find_next_song`. This also calls :func:`_optimize_weights` if
         we got useful feedback (based on the current song we are mixing). If
-        :paramref:`get_next_song.force` was ``True`` too many times we pick
-        random again.
+        ``get_next_song`` was ``True`` too many times we pick random again.
 
         :param dict user_feedback: The user feedback between the song of five
                                    and four picks ago.
@@ -631,8 +640,8 @@ class NCAPicker(Picker):
 
         This function makes a generator that contains all not played songs
         after the last call to :func:`reset_songs` filtered by their tempo,
-        which can have a maximum offset of
-        :paramref:`NCAPicker.max_tempo_percent` percent.
+        which can have a maximum percentage offset of ``max_tempo_percent``
+        given to :class:`NCAPicker`.
 
         :param string base_song: The base song of which its tempo used for
                                  filtering, if ``None`` the current song is

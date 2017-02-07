@@ -11,11 +11,14 @@ class Config():
     """The main class for the config. This stores program config and the user
     config.
     """
+
+    #: This are the fixed options that cannot be changed by the user.
     FIXED_OPTIONS = {
         'song_folder': None,
         'cache_dir': None,
         'output_folder': None
     }
+    #: These are the default baseclasses that :func:`dj_feet.core.loop` uses.
     BASECLASSES = [Picker, Controller, Transitioner, Communicator]
 
     def __init__(self):
@@ -53,14 +56,14 @@ class Config():
     def update_config_main_options(self, vals):
         """Set the main options.
 
-        This means setting the used classes for every class `BASECLASSES`.
+        This means setting the used classes for every class
+        :attr:`BASECLASSES`.
 
-        :param dict[str, str] vals: The dictionary of the mapping baseclass:
-                                    subclass
+        :param dict[str,str] vals: The dictionary of the mapping ``baseclass:subclass``.
         :raises ValueError: If the key you want to set is present in
-                            `self.FIXED_OPTIONS` or if the value is not a
+                            :attr:`FIXED_OPTIONS` or if the value is not a
                             subclass of the provided key according to
-                            `helpers.get_all_subclasses`.
+                            :func:`helpers.get_all_subclasses`.
         :returns: Nothing of value
         """
         for key, value in vals.items():
@@ -80,19 +83,20 @@ class Config():
                 raise ValueError("Wrong value encountered!")
 
     def update_config_class_options(self, basecls, subcls, vals):
-        """Update the given parameter config values for the given subcls.
+        """Update the given parameter config values for the given ``subcls``.
 
         This is done by overriding any value already present in the config for
-        this `basecls` and `subcls` mapping. Fixed values are not overridden.
+        this ``basecls`` and ``subcls`` mapping. Fixed values are not
+        overridden.
 
         :param str basecls: The baseclass to update, it should be in
-                            `Config.BASECLASSES`.
+                            :attr:`BASECLASSES`.
         :param str subcls: The implementation of `basecls` to update the values
                            for.
         :param dict[str] vals: The values that should be mapped option: value
                                to pass.
         :raises ValueError: If the key of a val in `vals` is present in
-                            `self.FIXED_OPTIONS`.
+                            :attr:`FIXED_OPTIONS`.
         :returns: Nothing of value.
         """
         for key, val in vals.items():
@@ -102,7 +106,15 @@ class Config():
 
     @staticmethod
     def get_all_options(baseclasses=None):
-        """Get all options for all classes according to this scheme:"""
+        """Get all options for all classes.
+
+        :param baseclasses: The classes to use, defaults
+                            to :attr:`BASECLASSES`.
+        :type baseclasses: list(type) or None
+        :returns: The dictionary with all options. For the format see the
+                  :ref:`#sdaas protocol<sdaas-protocol>`.
+        :rtype: dict
+        """
         configs = dict()
         if baseclasses is None:
             baseclasses = Config.BASECLASSES
@@ -141,8 +153,14 @@ class Config():
         return configs
 
     def _get_class_args(self, cls, config_key):
-        """Get the arguments for the given class from the user config. If a
-        required argument cannot be found this raises a LookupError.
+        """Get the arguments for the given class from the user config.
+
+        :param type cls: The class to find the arguments for.
+        :param str config_key: The config key to use as primary key
+                               in :attr:`user_config`.
+        :raises LookupError: If a required argument could not be found.
+        :returns: The arguments of cls
+        :rtype: dict
         """
         kwargs = dict()
 
@@ -174,6 +192,11 @@ class Config():
     def _get_class_instance(self, basecls, cls_name):
         """Get a instance of a class for the given category with the given
         name.
+
+        :param type basecls: The baseclass to use as category.
+        :param str cls_name: The subclass to find.
+        :returns: A class instance of cls_name
+        :rtype: subtype of basecls
         """
         cls = self.get_class(basecls, cls_name)
         return cls(**self._get_class_args(cls, basecls.__name__))
@@ -184,11 +207,12 @@ class Config():
         .. note:: this does not return an instance, only the class.
 
         :param type basecls: The base class, this should be a member of
-                             BASECLASSES.
-        :param str or None cls_name: The name of the subclass to find. This
+                             :attr:`BASECLASSES`.
+        :param cls_name: The name of the subclass to find. This
                          class should be a subclass of basecls. If `cls_name`
-                         is none the name from `user_config['main'][basecls]`
+                         is none the name from ``user_config['main'][basecls]``
                          is used.
+        :type cls_name: str or None
         :return: The class object with the given `cls_name`
         :rtype: type
         """
@@ -202,20 +226,40 @@ class Config():
 
     def get_controller(self, name=None):
         """Get a controller, name defaults to the name in the config.
+
+        :param name: The class name of the controller to find.
+        :type name: str or None
+        :returns: A fresh controller:
+        :rtype: subclass of :class:`dj_feet.controllers.Controller`
         """
         return self._get_class_instance(Controller, name)
 
     def get_picker(self, name=None):
         """Get a picker, name defaults to the name in the config.
+
+        :param name: The class name of the picker to find.
+        :type name: str or None
+        :returns: A fresh picker:
+        :rtype: subclass of :class:`dj_feet.pickers.Picker`
         """
         return self._get_class_instance(Picker, name)
 
     def get_transitioner(self, name=None):
         """Get a transitioner, name defaults to the name in the config.
+
+        :param name: The class name of the transitioner to find.
+        :type name: str or None
+        :returns: A fresh transitioner:
+        :rtype: subclass of :class:`dj_feet.transitioners.Transitioner`
         """
         return self._get_class_instance(Transitioner, name)
 
     def get_communicator(self, name=None):
         """Get a communicator, name defaults to the name in the config.
+
+        :param name: The class name of the communicator to find.
+        :type name: str or None
+        :returns: A fresh communicator:
+        :rtype: subclass of :class:`dj_feet.communicators.Communicator`
         """
         return self._get_class_instance(Communicator, name)

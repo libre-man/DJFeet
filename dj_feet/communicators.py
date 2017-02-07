@@ -43,8 +43,8 @@ class SimpleCommunicator(Communicator):
     """A simple communicator that does not conform to the standard protocol.
 
     This picker is a simple proof of concept, it however does not conform to
-    the #sdaas protocol so you will miss some data in your overview and
-    feedback WON'T work. All data returned is static.
+    the :ref:`#sdaas protocol<sdaas-protocol>` so you will miss some data in
+    your overview and feedback WON'T work. All data returned is static.
     """
 
     def __init__(self):
@@ -97,7 +97,7 @@ class ProtocolCommunicator(Communicator):
         :param int start: The start time to request the feedback from
         :param int end: The end time to request the feedback from
         :returns: The 'feedback' key from the returned dictionary from the
-        server
+                  server
         :rtype: dict
         """
         res = requests.post(
