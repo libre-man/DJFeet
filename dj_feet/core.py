@@ -14,7 +14,8 @@ def loop(app_id, remote, controller, picker, transitioner, communicator):
     It connects all the different parts of #sdaas.
 
     :param int app_id: The id of this controller.
-    :param str remote: The web address of the remote including `http` or `https`.
+    :param str remote: The web address of the remote including `http` or
+                       `https`.
     :param Controller controller: The controller to use for this loop.
     :param Picker picker: The picker to use for this loop.
     :param Transitioner transitioner: The transitioner to use for this loop.

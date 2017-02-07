@@ -59,7 +59,8 @@ class Config():
         This means setting the used classes for every class
         :attr:`BASECLASSES`.
 
-        :param dict[str,str] vals: The dictionary of the mapping ``baseclass:subclass``.
+        :param dict[str,str] vals: The dictionary of the mapping
+                                   ``baseclass:subclass``.
         :raises ValueError: If the key you want to set is present in
                             :attr:`FIXED_OPTIONS` or if the value is not a
                             subclass of the provided key according to
