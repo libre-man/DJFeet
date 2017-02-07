@@ -517,9 +517,11 @@ class NCAPicker(Picker):
             if song_file != self.current_song:
                 dst = self.song_distances[self.current_song][song_file]
                 chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
-                chances.append([song_file, chance])
+                chances.append((song_file, chance))
 
-        chances[1] = self.normalize_chances(chances[1])
+        chances = list(
+            zip([x for x, _ in chances],
+                self.normalize_chances([x for _, x in chances])))
 
         if not force:
             chances.append(
@@ -568,7 +570,7 @@ class NCAPicker(Picker):
         chances = list()
         for chance in original_chances:
             chances.append(chance**2)
-        chance_sum = sum((x[1] for x in chances))
+        chance_sum = sum(chances)
         for i in range(len(chances)):
             chances[i] = chances[i] / chance_sum
         return chances
@@ -587,7 +589,9 @@ class NCAPicker(Picker):
 
         def func_to_optimize(weights):
             feedback_dsts = list()
-            feedback_chances = list()
+            feedbacks = list()
+            chances = list()
+
             max_dst = -1
             for prev_song, next_song, feedback in self.done_transitions:
                 dst = self.distance(prev_song, next_song, weights)
@@ -597,10 +601,12 @@ class NCAPicker(Picker):
             distance_sum = sum((dst * factor for _, dst in feedback_dsts))
             for feedback, dst in feedback_dsts:
                 chance = numpy.power(numpy.e, -(dst * factor)) / distance_sum
-                feedback_chances.append([feedback, chance])
-            feedback_chances[1] = self.normalize_chances(feedback_chances[1])
+                feedbacks.append(feedback)
+                chances.append(chance)
+            chances = self.normalize_chances(chances)
             res_diff = 0
-            for feedback, chance in feedback_chances:
+
+            for feedback, chance in zip(feedbacks, chances):
                 res_diff = abs(feedback - chance)
             return res_diff
 
