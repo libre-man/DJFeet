@@ -1,3 +1,9 @@
+"""This module contains all functionality for the web part of the
+controller.
+
+:var STOP: wow"""
+
+
 from tempfile import TemporaryDirectory
 import os
 import multiprocessing as mp
@@ -64,7 +70,16 @@ class MyFlask(Flask):
 
 
 app = MyFlask(__name__)
-STOP, PROCESS_SONG, DELETE_SONG, START_LOOP, OPTIONS = range(5)
+#: Stop the worker
+STOP = 0
+#: Process the given song (song is in second arg)
+PROCESS_SONG = 1
+#: Delete the given song (song is in second arg)
+DELETE_SONG = 2
+#: Start the audio loop by calling :func:`dj_feet.core.loop`
+START_LOOP = 3
+#: Find and process all options and give them to the server
+OPTIONS = 4
 
 
 def backend_worker(worker_queue, remote, app_id, output_dir):

@@ -104,8 +104,7 @@ def get_all_subclasses(baseclass):
 def get_args(func):
     """Get all arguments for the given function.
 
-    :param func: The function to give the arguments for.
-    :type func: callable
+    :param callable func: The function to give the arguments for.
     :returns: A list of all arguments for the given function.
     :rtype: list
     """

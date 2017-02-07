@@ -15,12 +15,27 @@ class Communicator:
 
     def get_user_feedback(self, remote, controller_id, start, end):
         """Get and return the user feedback. The return value should be
-        subtyping dict"""
+        subtyping dict.
+
+        :param string remote: The http address of the remote including http
+        :param controller_id: The id of the current controller
+        :param int start: The start time to request the feedback from
+        :param int end: The end time to request the feedback from
+        :returns: A dictionary containing the received feedback.
+        :rtype: dict
+        """
         raise NotImplementedError("This method should be overridden")
 
     def iteration(self, remote, controller_id, mixed):
         """Do the iteration request to a server or let the user know
-        something."""
+        something.
+
+        :param str remote: This is ignored.
+        :param int controller_id: The id of this controller.
+        :param str mixed: The name of the file mixed without the extension.
+        :returns: Nothing of value.
+        :rtype: None
+        """
         raise NotImplementedError("This method should be overridden")
 
 
@@ -28,22 +43,35 @@ class SimpleCommunicator(Communicator):
     """A simple communicator that does not conform to the standard protocol.
 
     This picker is a simple proof of concept, it however does not conform to
-    the #sdaas protocol so you will miss some data in your overview and
-    feedback WON'T work. All data returned is static.
+    the :ref:`#sdaas protocol<sdaas-protocol>` so you will miss some data in
+    your overview and feedback WON'T work. All data returned is static.
     """
 
     def __init__(self):
-        """Initialize a `SimpleCommunicator` object."""
         super(SimpleCommunicator, self).__init__()
 
     def get_user_feedback(self, remote, controller_id, start, end):
         """Simply always return an empty dictionary as if there was no
         feedback.
+
+        :param string remote: The http address of the remote including http
+        :param controller_id: The id of the current controller
+        :param int start: The start time to request the feedback from
+        :param int end: The end time to request the feedback from
+        :returns: A empty dictionary
+        :rtype: dict
         """
         return {}
 
     def iteration(self, remote, controller_id, mixed):
-        """This does nothing useful whatsoever."""
+        """This does nothing useful whatsoever.
+
+        :param str remote: This is ignored.
+        :param int controller_id: The id of this controller.
+        :param str mixed: The name of the file mixed without the extension.
+        :returns: Nothing of value.
+        :rtype: None
+        """
         pass
 
 
@@ -56,19 +84,20 @@ class ProtocolCommunicator(Communicator):
     """
 
     def __init__(self):
-        """Initialize a `ProtocolCommunicator` object."""
         super(ProtocolCommunicator, self).__init__()
 
     def get_user_feedback(self, remote, controller_id, start, end):
         """Perform a POST request to '/get_feedback'.
 
-        This call is blocking: this means it waits till the remote as replied.
+        .. note:: This call is blocking: this means it waits till the remote as
+                  replied.
+
         :param string remote: The http address of the remote including http
         :param controller_id: The id of the current controller
         :param int start: The start time to request the feedback from
         :param int end: The end time to request the feedback from
         :returns: The 'feedback' key from the returned dictionary from the
-        server
+                  server
         :rtype: dict
         """
         res = requests.post(
@@ -83,7 +112,9 @@ class ProtocolCommunicator(Communicator):
     def iteration(self, remote, controller_id, mixed):
         """Do a iteration request to the remote.
 
-        This call is blocking.
+        .. note:: This call is blocking: this means it waits till the remote as
+                  replied.
+
         :param string remote: The http address of the remote including http
         :param controller_id: The id of the current controller
         :param string mixed: The filename without extension of the song mixed.

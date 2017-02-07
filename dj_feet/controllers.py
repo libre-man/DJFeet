@@ -13,12 +13,28 @@ class Controller:
 
     def should_continue(self):
         """Return if the loop should continue.
+
+        This function does not have to be pure and only gets called once every
+        core iteration. This is guaranteed and it is called before
+        :func:`get_waittime` is called.
+
+        :returns: If we should continue with the core loop.
+        :rtype: bool
         """
         raise NotImplementedError(
             "This function should be overridden by the subclass")
 
     def get_waittime(self, epoch, segment_size):
         """Return the amount of time we should sleep for.
+
+        This can be negative, however this negative time will NOT be corrected
+        for next loop. This function should do this.
+
+        :param float epoch: The unix time stamp we started,
+                            see :mod:`dj_feet.core` for more information.
+        :param int segment_size: The size of each generated segment.
+        :returns: The amount of time the core looper should sleep.
+        :rtype: numbers.Number
         """
         raise NotImplementedError(
             "This function should be overridden by the subclass")
@@ -33,10 +49,10 @@ class SimpleController(Controller):
     """
 
     def __init__(self, iteration_amount):
-        """Initialize a `SimpleController` object.
-
-        :param int iteration_amount: The amount of iterations, and therefore
-                                     the amount of samples to generate, to do.
+        """
+        :param int iteration_amount: The amount of iterations to do, and
+                                     therefore also the amount of samples to
+                                     generate.
         """
         self.iteration_amount = iteration_amount
         self.iterations_done = 0
@@ -44,8 +60,9 @@ class SimpleController(Controller):
     def should_continue(self):
         """Checks if we should do another iteration of the core loop.
 
-        This adjusts the `self.iterations_done` variable, so this function is
-        NOT pure.
+        .. note:: This adjusts the :attr:`self.iterations_done` variable, so
+                  this function is not pure.
+
         :returns: If we should do a next iteration.
         :rtype: int
         """

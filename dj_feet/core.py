@@ -8,6 +8,23 @@ l = logging.getLogger(__name__)
 
 
 def loop(app_id, remote, controller, picker, transitioner, communicator):
+    """The core looper used by DJFeet while generating music.
+
+    This generates music as long as it is indicated by the controller to do so.
+    It connects all the different parts of #sdaas.
+
+    :param int app_id: The id of this controller.
+    :param str remote: The web address of the remote including `http` or
+                       `https`.
+    :param Controller controller: The controller to use for this loop.
+    :param Picker picker: The picker to use for this loop.
+    :param Transitioner transitioner: The transitioner to use for this loop.
+    :param Communicator communicator: The communicator to use for this loop.
+    :raises Exception: If anything goes wrong which we can't recover from this
+                       exception is bubbled up.
+    :returns: Nothing of value.
+    :rtype: None
+    """
     merge_times = []
     new_sample = None
     old_sample = None
